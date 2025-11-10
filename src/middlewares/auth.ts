@@ -1,7 +1,7 @@
 
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
-import { env } from "../config/env";
+import { env } from "../config/env.ts";
 
 export type Role = "consumer" | "partner" | "admin";
 

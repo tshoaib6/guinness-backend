@@ -1,7 +1,7 @@
 
 import { NextFunction, Request, Response } from "express";
 import { ZodError } from "zod";
-import { logger } from "../config/logger";
+import { logger } from "../config/logger.ts";
 
 export function errorMiddleware(err: any, _req: Request, res: Response, _next: NextFunction) {
   if (err instanceof ZodError) {
