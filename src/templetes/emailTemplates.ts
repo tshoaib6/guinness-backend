@@ -26,3 +26,19 @@ export const welcomeEmailTemplate = (name: string) => {
   `;
   return { subject, html };
 };
+
+
+export const passwordResetEmailTemplate = (name: string, otp: string) => {
+  const subject = 'Guinness Rewards Password Reset OTP';
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+      <h2>Hi ${name},</h2>
+      <p>We received a request to reset your password for your Guinness Rewards account.</p>
+      <p><strong>Your OTP for password reset is: ${otp}</strong></p>
+      <p>This OTP is valid for 10 minutes. Please do not share it with anyone.</p>
+      <p>If you did not request a password reset, you can safely ignore this email.</p>
+      <p>Cheers,<br/>Guinness Rewards Team</p>
+    </div>
+  `;
+  return { subject, html };
+};
