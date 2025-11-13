@@ -28,7 +28,7 @@ export const welcomeEmailTemplate = (name: string) => {
 };
 
 
-export const passwordResetEmailTemplate = (name: string, otp: string) => {
+export const  passwordResetEmailTemplate = (name: string, otp: string) => {
   const subject = 'Guinness Rewards Password Reset OTP';
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.5;">

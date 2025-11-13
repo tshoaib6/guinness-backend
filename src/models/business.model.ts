@@ -32,7 +32,7 @@ const businessSchema = new Schema<IBusiness>(
       },
       value: {
         type: Number,
-        required: true,
+        required: true, 
         min: 1,
       },
     },

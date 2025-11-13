@@ -13,6 +13,7 @@ import {
   getUserByIdService,
   deleteUserService,
   updateUserStatusService,
+  verifyPasswordResetOtpService,
 } from "../services/user.service";
 
 // ---------------- Registration Controller ----------------
@@ -93,41 +94,97 @@ export const rejectBusinessController = async (req: Request, res: Response) => {
   }
 };
 
-
 export const forgotPasswordController = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
     const result = await forgotPasswordService(email);
-    res.status(result.success ? 200 : 400).json(result);
+    return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     console.error("Forgot password error:", error);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
 
-// ---------------- Reset Password Using OTP ----------------
+// ---------------- Step 2: Verify Password Reset OTP ----------------
+export const verifyPasswordResetOtpController = async (req: Request, res: Response) => {
+  try {
+    const { email, otp } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and OTP are required.",
+      });
+    }
+
+    const result = await verifyPasswordResetOtpService(email, otp);
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    console.error("Verify password reset OTP error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
+  }
+};
+
+// ---------------- Step 3: Reset Password ----------------
 export const resetPasswordController = async (req: Request, res: Response) => {
   try {
-    const { email, otp, newPassword } = req.body;
-    const result = await resetPasswordService(email, otp, newPassword);
-    res.status(result.success ? 200 : 400).json(result);
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Email and new password are required.",
+      });
+    }
+
+    const result = await resetPasswordService(email, newPassword);
+    return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     console.error("Reset password error:", error);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
 
-// ---------------- Resend Password Reset OTP Controller ----------------
+// ---------------- Step 4: Resend Password Reset OTP ----------------
 export const resendPasswordResetOtpController = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required.",
+      });
+    }
+
     const result = await resendPasswordResetOtpService(email);
-    res.status(result.success ? 200 : 400).json(result);
+    return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     console.error("Resend password reset OTP error:", error);
-    res.status(500).json({ success: false, message: "Server error." });
+    return res.status(500).json({
+      success: false,
+      message: "Server error. Please try again later.",
+    });
   }
 };
+
 export const getAllUsersController = async (req: Request, res: Response) => {
   try {
     const { page, limit, sortBy, sortOrder, role, email, search } = req.query;
