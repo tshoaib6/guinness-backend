@@ -389,7 +389,6 @@ export const resetPasswordService = async (email: string, newPassword: string) =
 
   return { success: true, message: "Password has been reset successfully." };
 };
-
 export const getAllUsersService = async (
   filter: FilterOptions = {},
   pagination: PaginationOptions = {}
@@ -398,11 +397,37 @@ export const getAllUsersService = async (
   if (filter.role) query.role = filter.role;
   if (filter.email) query.email = filter.email;
 
-  // Pass search keyword to paginate function
-  const result = await paginate(User, query, pagination, "firstName lastName email phone role age location businessInfo.businessName");
+  // Fetch only required fields including needed businessInfo fields
+  const result: any = await paginate(
+    User,
+    query,
+    pagination,
+    "firstName lastName email phone role age location businessInfo.approvedByAdmin businessInfo.businessType businessInfo.ownerName businessInfo.address"
+  );
 
-  return { success: true, ...result };
+  // Ensure result.docs exists
+  const docs = Array.isArray(result.docs) ? result.docs : [];
+
+  // Map over docs to filter businessInfo
+  const modifiedDocs = docs.map((user: any) => {
+    const businessInfo = user.businessInfo || null;
+
+    return {
+      ...user.toObject(),
+      businessInfo: businessInfo
+        ? {
+            approvedByAdmin: businessInfo.approvedByAdmin,
+            businessType: businessInfo.businessType,
+            ownerName: businessInfo.ownerName,
+            address: businessInfo.address,
+          }
+        : null,
+    };
+  });
+
+  return { success: true, ...result, docs: modifiedDocs };
 };
+
 
 const USER_FIELDS = "firstName lastName email phone role location points businessInfo";
 
