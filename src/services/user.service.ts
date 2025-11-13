@@ -347,34 +347,9 @@ export const resendPasswordResetOtpService = async (email: string) => {
 
 // ---------------- Step 3: Verify OTP ----------------
 export const verifyPasswordResetOtpService = async (email: string, otp: string) => {
-  const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires");
+  const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires +passwordResetVerified");
   if (!user) return { success: false, message: "User not found." };
 
-  if (!user.passwordResetOtp || !user.passwordResetOtpExpires)
-    return { success: false, message: "No OTP found. Please request a new one." };
-
-  if (user.passwordResetOtpExpires < new Date())
-    return { success: false, message: "OTP has expired. Please request a new one." };
-
-  if (user.passwordResetOtp !== otp)
-    return { success: false, message: "Invalid OTP. Please try again." };
-
-  // ✅ OTP is valid — clear OTP and mark verified
-  user.passwordResetOtp = null;
-  user.passwordResetOtpExpires = null;
-  user.otpVerified = true; // 👈 corrected field name
-  await user.save();
-
-  return { success: true, message: "OTP verified successfully." };
-};
-
-// ---------------- Step 4: Reset Password ----------------
-export const resetPasswordService = async (email: string, otp: string, newPassword: string) => {
-  // Find user including OTP fields
-  const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires");
-  if (!user) return { success: false, message: "User not found." };
-
-  // ✅ Check OTP validity
   if (!user.passwordResetOtp || !user.passwordResetOtpExpires) {
     return { success: false, message: "No OTP found. Please request a new one." };
   }
@@ -387,18 +362,35 @@ export const resetPasswordService = async (email: string, otp: string, newPasswo
     return { success: false, message: "Invalid OTP." };
   }
 
-  // ✅ OTP is valid — reset password
+  // ✅ Mark OTP as verified
+  user.passwordResetVerified = true;
+  await user.save();
+
+  return { success: true, message: "OTP verified successfully." };
+};
+
+// ---------------- Step 4: Reset Password ----------------
+export const resetPasswordService = async (email: string, newPassword: string) => {
+  const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires +passwordResetVerified");
+  if (!user) return { success: false, message: "User not found." };
+
+  if (!user.passwordResetVerified) {
+    return { success: false, message: "Please verify OTP before resetting your password." };
+  }
+
   const hashedPassword = await bcrypt.hash(newPassword, 10);
   user.password = hashedPassword;
 
-  // ✅ Remove OTP & expiry after reset
+  // ✅ Clear OTP fields and verification flag
   user.passwordResetOtp = undefined;
   user.passwordResetOtpExpires = undefined;
+  user.passwordResetVerified = false;
 
   await user.save();
 
   return { success: true, message: "Password has been reset successfully." };
 };
+
 
 export const getAllUsersService = async (
   filter: FilterOptions = {},

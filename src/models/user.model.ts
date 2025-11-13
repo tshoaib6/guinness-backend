@@ -29,6 +29,8 @@ export interface IUser extends Document {
   termsAccepted: boolean;
   passwordResetOtp?: string | null;
   passwordResetOtpExpires?: Date | null;
+  passwordResetVerified?: boolean; // NEW flag for 3-step flow
+
   status: "active" | "blocked" | "pending"; // New field
   createdAt: Date;
   updatedAt: Date;
@@ -77,6 +79,8 @@ const userSchema = new Schema<IUser>(
     termsAccepted: { type: Boolean, required: true },
     passwordResetOtp: { type: String, default: null },
     passwordResetOtpExpires: { type: Date, default: null },
+    passwordResetVerified: { type: Boolean, default: false },
+
     status: { type: String, enum: ["active", "blocked", "pending"], default: "active", required: true }, // NEW
   },
   { timestamps: true }
