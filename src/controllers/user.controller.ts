@@ -142,16 +142,18 @@ export const verifyPasswordResetOtpController = async (req: Request, res: Respon
 // ---------------- Step 3: Reset Password ----------------
 export const resetPasswordController = async (req: Request, res: Response) => {
   try {
-    const { email, newPassword } = req.body;
+    const { email, otp, newPassword } = req.body;
 
-    if (!email || !newPassword) {
+    if (!email || !otp || !newPassword) {
       return res.status(400).json({
         success: false,
-        message: "Email and new password are required.",
+        message: "Email, OTP, and new password are required.",
       });
     }
 
-    const result = await resetPasswordService(email, newPassword);
+    // Pass OTP to service
+    const result = await resetPasswordService(email, otp, newPassword);
+
     return res.status(result.success ? 200 : 400).json(result);
   } catch (error) {
     console.error("Reset password error:", error);
@@ -161,6 +163,7 @@ export const resetPasswordController = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 // ---------------- Step 4: Resend Password Reset OTP ----------------
 export const resendPasswordResetOtpController = async (req: Request, res: Response) => {
