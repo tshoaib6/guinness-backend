@@ -6,7 +6,7 @@ export interface IUser extends Document {
   lastName?: string;
   email?: string;
   password: string;
-  dob?: Date;
+  dob?: Date;   
   age?: number;
   location?: string;
   role: "consumer" | "business" | "admin";
@@ -17,7 +17,7 @@ export interface IUser extends Document {
     ownerName?: string;
     phone?: string;
     email?: string;
-    address?: string;
+    address?: string; 
     taxId?: string;
     bankAccount?: string;
     approvedByAdmin: boolean;

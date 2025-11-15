@@ -405,7 +405,7 @@ export const getAllUsersService = async (
     User,
     query,
     pagination,
-    "firstName lastName email phone role age location businessInfo.approvedByAdmin businessInfo.businessType businessInfo.ownerName businessInfo.address"
+    "firstName lastName email phone role age points location businessInfo.approvedByAdmin businessInfo.businessType businessInfo.ownerName businessInfo.address"
   );
 
   // Ensure result.docs exists
