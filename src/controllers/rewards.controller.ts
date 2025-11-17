@@ -10,6 +10,7 @@ import {
   updateRewardStatusService,
 } from "../services/rewards.service";
 import { uploadToCloudinary } from "../utils/cloudinary";
+import { PaginationOptions } from "../utils/pagination";
 
 export const createRewardController = async (req: Request, res: Response) => {
   try {
@@ -31,8 +32,25 @@ export const createRewardController = async (req: Request, res: Response) => {
 };
 
 export const getAllRewardsController = async (req: Request, res: Response) => {
-  const result = await getAllRewardsService();
-  res.status(result.success ? 200 : 400).json(result);
+  try {
+    // Extract pagination options from query
+    const options: PaginationOptions = {
+      page: req.query.page ? Number(req.query.page) : 1,
+      limit: req.query.limit ? Number(req.query.limit) : 20,
+      sortBy: req.query.sortBy ? String(req.query.sortBy) : "createdAt",
+      sortOrder: req.query.sortOrder === "asc" ? "asc" : "desc",
+      search: req.query.search ? String(req.query.search) : undefined,
+    };
+
+    const result = await getAllRewardsService(options);
+
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
+  }
 };
 
 // ---------- Update Reward Status ----------
@@ -53,15 +71,31 @@ export const updateRewardStatusController = async (req: Request, res: Response) 
 };
 
 export const getRewardsByBusinessController = async (req: Request, res: Response) => {
-  const { businessId } = req.params;
+  try {
+    const { businessId } = req.params;
 
-  // Type assertion
-  const userRole = (req as any).user?.role || "consumer";
+    // Type assertion for user role
+    const userRole = (req as any).user?.role || "consumer";
 
-  const result = await getRewardsByBusinessService(businessId, userRole);
-  res.status(result.success ? 200 : 404).json(result);
+    // Extract pagination options from query
+    const options: PaginationOptions = {
+      page: req.query.page ? Number(req.query.page) : 1,
+      limit: req.query.limit ? Number(req.query.limit) : 20,
+      sortBy: req.query.sortBy ? String(req.query.sortBy) : "createdAt",
+      sortOrder: req.query.sortOrder === "asc" ? "asc" : "desc",
+      search: req.query.search ? String(req.query.search) : undefined,
+    };
+
+    const result = await getRewardsByBusinessService(businessId, userRole, options);
+
+    return res.status(result.success ? 200 : 404).json(result);
+  } catch (error: any) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
+  }
 };
-
 
 export const getSingleRewardController = async (
   req: Request,

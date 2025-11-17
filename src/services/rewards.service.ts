@@ -1,6 +1,7 @@
 // services/rewardService.ts
 import { Reward } from "../models/rewards.model";
 import { Types } from "mongoose";
+import { paginate, PaginationOptions } from "../utils/pagination";
 
 export const createRewardService = async (data: any) => {
   try {
@@ -19,13 +20,28 @@ export const createRewardService = async (data: any) => {
   }
 };
 
-export const getAllRewardsService = async () => {
+export const getAllRewardsService = async (options: PaginationOptions = {}) => {
   try {
-    const rewards = await Reward.find();
+    const query: any = {};
+
+    // 🔍 Optional search by reward name
+    if (options.search && options.search.trim() !== "") {
+      query.rewardName = { $regex: options.search.trim(), $options: "i" };
+    }
+
+    // ✅ Use your paginate utility
+    const result = await paginate(Reward, query, options);
+
     return {
       success: true,
       message: "All rewards fetched successfully",
-      data: rewards,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+      data: result.data,
     };
   } catch (error: any) {
     return {
@@ -63,21 +79,37 @@ export const updateRewardStatusService = async (rewardId: string, isActive: bool
   }
 };
 
-export const getRewardsByBusinessService = async (businessId: string, userRole: string) => {
+export const getRewardsByBusinessService = async (
+  businessId: string,
+  userRole: string,
+  options: PaginationOptions = {}
+) => {
   try {
-    let query: any = { business: businessId };
+    const query: any = { business: businessId };
 
-    // If not admin, only show active rewards
+    // Only show active rewards for non-admins
     if (userRole !== "admin") {
       query.isActive = true;
     }
 
-    const rewards = await Reward.find(query);
+    // Optional search by reward name
+    if (options.search && options.search.trim() !== "") {
+      query.rewardName = { $regex: options.search.trim(), $options: "i" };
+    }
+
+    // Use your paginate utility
+    const result = await paginate(Reward, query, options);
 
     return {
       success: true,
       message: "Rewards fetched successfully",
-      data: rewards,
+      pagination: {
+        total: result.total,
+        page: result.page,
+        limit: result.limit,
+        totalPages: result.totalPages,
+      },
+      data: result.data,
     };
   } catch (error: any) {
     return {
