@@ -1,6 +1,7 @@
 import { Redeem } from "../models/redeem.model";
 import { User } from "../models/user.model";
 import { Reward } from "../models/rewards.model";
+import { PaginationOptions } from "../utils/pagination";
 
 export const createRedeemService = async (userId: string, rewardId: string) => {
   try {
@@ -42,33 +43,60 @@ export const createRedeemService = async (userId: string, rewardId: string) => {
 };
 
 
-export const getAllRedeemsService = async (role: string, userId?: string) => {
+export const getAllRedeemsService = async (
+  role: string,
+  userId?: string,
+  options: PaginationOptions = {}
+) => {
   try {
-    let query: any = {};
+    const page = options.page && options.page > 0 ? options.page : 1;
+    const limit = options.limit && options.limit > 0 ? options.limit : 20;
+    const skip = (page - 1) * limit;
 
-    // If role is consumer, show only their own redeems
+    const query: any = {};
+
+    // If role is consumer → show only their redeems
     if (role === "consumer" && userId) {
       query.user = userId;
     }
 
-    // If role is business, show redeems only for rewards of this business
-    // This requires reward population, we can filter after populate
+    // If role is business → show redeems for rewards owned by this business
+    if (role === "business" && userId) {
+      query["reward.business"] = userId;
+    }
 
+    // Get total documents
+    const total = await Redeem.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
+
+    // Fetch paginated + populated data
     const redeems = await Redeem.find(query)
-      .populate("user", "firstName lastName email phone role") // populate user details
+      .populate("user", "firstName lastName email phone role")
       .populate({
         path: "reward",
         select: "rewardName pointsRequired rewardType description business",
-        populate: { path: "business", select: "name" }, // populate business info in reward
+        populate: { path: "business", select: "name" },
       })
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
     return {
       success: true,
       message: "Redeems fetched successfully",
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
       data: redeems,
     };
   } catch (error: any) {
-    return { success: false, message: error.message || "Failed to fetch redeems" };
+    return {
+      success: false,
+      message: error.message || "Failed to fetch redeems",
+    };
   }
 };

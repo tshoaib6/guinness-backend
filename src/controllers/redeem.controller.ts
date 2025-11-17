@@ -1,6 +1,7 @@
 import { Response } from "express";
 import { createRedeemService, getAllRedeemsService } from "../services/redeem.service";
 import  {AuthRequest}  from "../middlewares/auth"; // import our exported interface
+import { PaginationOptions } from "../utils/pagination";
 
 export const createRedeemController = async (req: AuthRequest, res: Response) => {
   try {
@@ -18,7 +19,6 @@ export const createRedeemController = async (req: AuthRequest, res: Response) =>
   }
 };
 
-
 export const getAllRedeemsController = async (req: AuthRequest, res: Response) => {
   try {
     const role = req.user?.role;
@@ -28,10 +28,22 @@ export const getAllRedeemsController = async (req: AuthRequest, res: Response) =
       return res.status(401).json({ success: false, message: "Unauthorized" });
     }
 
-    const result = await getAllRedeemsService(role, userId);
+    // 📌 Extract pagination options with correct type casting
+    const options: PaginationOptions = {
+      page: req.query.page ? Number(req.query.page) : 1,
+      limit: req.query.limit ? Number(req.query.limit) : 20,
+      sortBy: req.query.sortBy ? String(req.query.sortBy) : "createdAt",
+      sortOrder: req.query.sortOrder === "asc" ? "asc" : "desc", // <-- FIXED
+      search: req.query.search ? String(req.query.search) : undefined, 
+    };
 
-    res.status(result.success ? 200 : 400).json(result);
+    const result = await getAllRedeemsService(role, userId, options);
+
+    return res.status(result.success ? 200 : 400).json(result);
   } catch (error: any) {
-    res.status(500).json({ success: false, message: error.message || "Server error" });
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Server error",
+    });
   }
 };
