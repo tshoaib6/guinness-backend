@@ -166,9 +166,16 @@ export const getSingleRewardService = async (rewardId: string) => {
 
 export const updateRewardService = async (rewardId: string, updateData: any) => {
   try {
-    const reward = await Reward.findByIdAndUpdate(rewardId, updateData, {
-      new: true,
+    // Remove undefined values
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) delete updateData[key];
     });
+
+    const reward = await Reward.findByIdAndUpdate(
+      rewardId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
 
     if (!reward) {
       return {
@@ -183,6 +190,7 @@ export const updateRewardService = async (rewardId: string, updateData: any) => 
       data: reward,
     };
   } catch (error: any) {
+    console.error("Update Reward Error:", error);
     return {
       success: false,
       message: error.message || "Failed to update reward",
