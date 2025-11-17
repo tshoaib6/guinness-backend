@@ -1,7 +1,7 @@
 import { Schema, model, Document, Types } from "mongoose";
 
 export interface IBusinessDetails extends Document {
-  business: Types.ObjectId;  // reference to Business
+  business: Types.ObjectId;
 
   title: string;
 
@@ -17,6 +17,14 @@ export interface IBusinessDetails extends Document {
     entryRule: string;
   };
 
+  earnPerPurchase: {
+    productName: string;
+    size: string;              // "4 x 275ml bottles"
+    points: number;            // 40
+    entries: number;           // 1
+    bonusTip?: string;         // optional
+  }[];
+
   isActive: boolean;
 }
 
@@ -26,7 +34,7 @@ const businessDetailsSchema = new Schema<IBusinessDetails>(
       type: Schema.Types.ObjectId,
       ref: "Business",
       required: true,
-      unique: true, // ensures one-to-one relation
+      unique: true,
     },
 
     title: { type: String, required: true },
@@ -45,9 +53,22 @@ const businessDetailsSchema = new Schema<IBusinessDetails>(
       entryRule: { type: String, required: true },
     },
 
+    earnPerPurchase: [
+      {
+        productName: { type: String, required: true },
+        size: { type: String, required: true },
+        points: { type: Number, required: true },
+        entries: { type: Number, required: true },
+        bonusTip: { type: String },
+      },
+    ],
+
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }
 );
 
-export const BusinessDetails = model<IBusinessDetails>("BusinessDetails", businessDetailsSchema);
+export const BusinessDetails = model<IBusinessDetails>(
+  "BusinessDetails",
+  businessDetailsSchema
+);

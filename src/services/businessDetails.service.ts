@@ -23,6 +23,11 @@ export class BusinessDetailsService {
       return { success: false, message: "Details already exist for this business." };
     }
 
+    // Validate earnPerPurchase array if it exists
+    if (data.earnPerPurchase && !Array.isArray(data.earnPerPurchase)) {
+      return { success: false, message: "`earnPerPurchase` must be an array." };
+    }
+
     const created = await BusinessDetails.create(data);
 
     return {
@@ -38,7 +43,8 @@ export class BusinessDetailsService {
       return { success: false, message: "Invalid business ID." };
     }
 
-    const details = await BusinessDetails.findOne({ business: businessId }).populate("business");
+    const details = await BusinessDetails.findOne({ business: businessId })
+      .populate("business");
 
     if (!details) {
       return {
@@ -54,16 +60,22 @@ export class BusinessDetailsService {
     };
   }
 
-  // Update Business Details
+  // Update Business Details (full or partial)
   static async updateDetails(id: string, updateData: any) {
     if (!Types.ObjectId.isValid(id)) {
       return { success: false, message: "Invalid details ID." };
     }
 
-    const updated = await BusinessDetails.findByIdAndUpdate(id, updateData, {
-      new: true,
-      runValidators: true,
-    });
+    // optional: validate earnPerPurchase update
+    if (updateData.earnPerPurchase && !Array.isArray(updateData.earnPerPurchase)) {
+      return { success: false, message: "`earnPerPurchase` must be an array." };
+    }
+
+    const updated = await BusinessDetails.findByIdAndUpdate(
+      id,
+      updateData, 
+      { new: true, runValidators: true }
+    );
 
     if (!updated) {
       return { success: false, message: "Business details not found." };
