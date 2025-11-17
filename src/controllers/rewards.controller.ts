@@ -16,6 +16,7 @@ export const createRewardController = async (req: Request, res: Response) => {
   try {
     let imageUrl = "";
 
+    // Upload image to Cloudinary if provided
     if (req.file) {
       imageUrl = await uploadToCloudinary(req.file.buffer, "rewards");
     }
@@ -25,9 +26,15 @@ export const createRewardController = async (req: Request, res: Response) => {
       image: imageUrl,
     });
 
-    res.status(result.success ? 200 : 400).json(result);
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server error" });
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error: any) {
+    console.error("Create Reward Controller Error:", error); // 🔥 Log full error internally
+
+    // Send clean message to frontend
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Failed to create reward",
+    });
   }
 };
 
