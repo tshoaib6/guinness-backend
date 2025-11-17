@@ -13,6 +13,27 @@ export const createRewardService = async (data: any) => {
       data: reward,
     };
   } catch (error: any) {
+    console.error("Create Reward Error:", error); // 🔥 Full internal logging
+
+    // 🟦 Mongoose Validation Errors (required fields, enum, min, max, etc.)
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map((e: any) => e.message);
+      return {
+        success: false,
+        message: messages.join(", "), // send human-readable messages
+      };
+    }
+
+    // 🟧 Duplicate key error (unique fields)
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyValue).join(", ");
+      return {
+        success: false,
+        message: `The field '${field}' must be unique. This value already exists.`,
+      };
+    }
+
+    // 🟥 Fallback error for unknown issues
     return {
       success: false,
       message: error.message || "Failed to create reward",
