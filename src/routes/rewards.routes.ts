@@ -29,7 +29,12 @@ router.get("/getRewardsBybusiness/:businessId", getRewardsByBusinessController);
 router.get("/getRewardById/:rewardId", getSingleRewardController);
 
 // Update reward
-router.put("/updateReward/:rewardId",authenticateAdmin, updateRewardController);
+router.put(
+  "/updateReward/:rewardId",
+  upload.single("image"),
+  authenticateAdmin,
+  updateRewardController
+);
 
 // Delete reward
 router.delete("/deleteReward/:rewardId",authenticateAdmin, deleteRewardController);

@@ -166,22 +166,19 @@ export const getSingleRewardService = async (rewardId: string) => {
 
 export const updateRewardService = async (rewardId: string, updateData: any) => {
   try {
-    // Remove undefined values
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined) delete updateData[key];
+    console.log("🔥 Update Service Called");
+    console.log("➡ Reward ID:", rewardId);
+    console.log("➡ Update Data:", updateData);
+
+    const reward = await Reward.findByIdAndUpdate(rewardId, updateData, {
+      new: true,
+      runValidators: true,
     });
 
-    const reward = await Reward.findByIdAndUpdate(
-      rewardId,
-      { $set: updateData },
-      { new: true, runValidators: true }
-    );
+    console.log("⬅ Updated Document:", reward);
 
     if (!reward) {
-      return {
-        success: false,
-        message: "Reward not found",
-      };
+      return { success: false, message: "Reward not found" };
     }
 
     return {
@@ -190,13 +187,11 @@ export const updateRewardService = async (rewardId: string, updateData: any) => 
       data: reward,
     };
   } catch (error: any) {
-    console.error("Update Reward Error:", error);
-    return {
-      success: false,
-      message: error.message || "Failed to update reward",
-    };
+    console.error(error);
+    return { success: false, message: error.message };
   }
 };
+
 
 export const deleteRewardService = async (rewardId: string) => {
   try {

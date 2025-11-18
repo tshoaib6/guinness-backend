@@ -115,44 +115,29 @@ export const getSingleRewardController = async (
 
 export const updateRewardController = async (req: Request, res: Response) => {
   try {
-    let imageUrl = undefined;
+    console.log("🔥 Req Body:", req.body);
+    console.log("🔥 Req File:", req.file);
 
-    // 🟦 1. Upload image if provided
+    let updateData: any = { ...req.body };
+
+    // If new image is uploaded, add it
     if (req.file) {
-      imageUrl = await uploadToCloudinary(req.file.buffer, "rewards");
-    }
-
-    // 🟧 2. Combine body + image
-    let updateData: any = {
-      ...req.body,
-    };
-
-    if (imageUrl) {
+      const imageUrl = await uploadToCloudinary(req.file.buffer, "rewards");
       updateData.image = imageUrl;
     }
 
-    // 🟩 3. Remove undefined or empty-string values
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key] === undefined || updateData[key] === "") {
-        delete updateData[key];
-      }
-    });
+    console.log("🔥 Final Update Data:", updateData);
 
-    console.log("Final Update Data:", updateData); // Debug
-
-    // 🟥 4. Call service
     const result = await updateRewardService(req.params.rewardId, updateData);
 
     return res.status(result.success ? 200 : 400).json(result);
-  } catch (error: any) {
-    console.error("Update Reward Controller Error:", error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Server error",
-    });
+  } catch (error:any) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
   }
 };
-  
+
 
 export const deleteRewardController = async (req: Request, res: Response) => {
   const { rewardId } = req.params;
