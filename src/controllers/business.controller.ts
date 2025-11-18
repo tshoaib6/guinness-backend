@@ -9,9 +9,20 @@ import {
 import { PaginationOptions } from "../utils/pagination";
 
 export const createBusinessController = async (req: Request, res: Response) => {
-  const data = req.body;
-  const result = await createBusiness(data);
-  return res.status(result.success ? 200 : 400).json(result);
+  try {
+    const data = req.body;
+    const file = req.file; // IMPORTANT: file from multer
+
+    const result = await createBusiness(data, file);
+
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    console.error("Create Business Controller Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while creating business.",
+    });
+  }
 };
 
 export const getAllBusinessesController = async (req: Request, res: Response) => {
@@ -40,12 +51,22 @@ export const getBusinessByIdController = async (req: Request, res: Response) => 
   const result = await getBusinessById(id);
   return res.status(result.success ? 200 : 404).json(result);
 };
-
 export const updateBusinessController = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const data = req.body;
-  const result = await updateBusiness(id, data);
-  return res.status(result.success ? 200 : 400).json(result);
+  try {
+    const { id } = req.params;
+    const data = req.body;
+    const file = req.file;
+
+    const result = await updateBusiness(id, data, file);
+
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error) {
+    console.error("Update Business Controller Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating business.",
+    });
+  }
 };
 
 export const deleteBusinessController = async (req: Request, res: Response) => {

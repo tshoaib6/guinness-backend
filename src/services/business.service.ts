@@ -1,8 +1,15 @@
 import {Business} from "../models/business.model";
+import { uploadToCloudinary } from "../utils/cloudinary";
 import { paginate, PaginationOptions } from "../utils/pagination";
 
-export const createBusiness = async (data: any) => {
+export const createBusiness = async (data: any, file?: Express.Multer.File) => {
   try {
+    // Upload icon if file exists
+    if (file) {
+      const uploadedUrl = await uploadToCloudinary(file.buffer, "business_icons");
+      data.icon = uploadedUrl;
+    }
+
     const existingBusiness = await Business.findOne({ name: data.name });
     if (existingBusiness) {
       return { success: false, message: "Business with this name already exists." };
@@ -16,7 +23,7 @@ export const createBusiness = async (data: any) => {
       message: "Business created successfully.",
       data: business,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Create Business Error:", error);
     return { success: false, message: "Failed to create business." };
   }
@@ -74,8 +81,13 @@ export const getBusinessById = async (id: string) => {
 };
 
 
-export const updateBusiness = async (id: string, data: any) => {
+export const updateBusiness = async (id: string, data: any, file?: Express.Multer.File) => {
   try {
+    if (file) {
+      const uploadedUrl = await uploadToCloudinary(file.buffer, "business_icons");
+      data.icon = uploadedUrl;
+    }
+
     const updated = await Business.findByIdAndUpdate(id, data, { new: true });
     if (!updated) {
       return { success: false, message: "Business not found or update failed." };
@@ -86,7 +98,7 @@ export const updateBusiness = async (id: string, data: any) => {
       message: "Business updated successfully.",
       data: updated,
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Update Business Error:", error);
     return { success: false, message: "Failed to update business." };
   }
