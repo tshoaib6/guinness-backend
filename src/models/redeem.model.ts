@@ -5,7 +5,8 @@ export interface IRedeem extends Document {
   reward: Types.ObjectId;
   business: Types.ObjectId;
   pointsUsed: number;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "delivered";
+  redeemCode: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -22,6 +23,12 @@ const redeemSchema = new Schema<IRedeem>(
       ref: "Reward",
       required: true,
     },
+    redeemCode: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+
     business: {
       type: Schema.Types.ObjectId,
       ref: "Business",
@@ -33,8 +40,8 @@ const redeemSchema = new Schema<IRedeem>(
     },
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending", // better default
+      enum: ["pending", "delivered"],
+      default: "pending",
     },
   },
   { timestamps: true }

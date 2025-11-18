@@ -3,6 +3,8 @@ import { User } from "../models/user.model";
 import { Reward } from "../models/rewards.model";
 import { PaginationOptions } from "../utils/pagination";
 
+import crypto from "crypto";
+
 export const createRedeemService = async (userId: string, rewardId: string) => {
   try {
     // Find user
@@ -23,29 +25,33 @@ export const createRedeemService = async (userId: string, rewardId: string) => {
     user.points -= reward.pointsRequired;
     await user.save();
 
+    // Generate unique 8-digit redeem code
+    const redeemCode = crypto.randomBytes(4).toString("hex").toUpperCase();
+    // Example: "9F3A1CDE"
+
     // Create redeem record
     const redeem = await Redeem.create({
       user: user._id,
       reward: reward._id,
       business: reward.business,
       pointsUsed: reward.pointsRequired,
-      status: "approved", // auto-approve
+      status: "pending", // default
+      redeemCode,        // NEW
     });
 
     return {
       success: true,
-      message: "Reward redeemed successfully",
+      message: "Reward redemption request submitted!",
       data: redeem,
     };
   } catch (error: any) {
     return { success: false, message: error.message || "Redeem failed" };
   }
 };
-
-
 export const getAllRedeemsService = async (
   role: string,
   userId?: string,
+  status?: "pending" | "delivered", // pass status separately
   options: PaginationOptions = {}
 ) => {
   try {
@@ -55,21 +61,22 @@ export const getAllRedeemsService = async (
 
     const query: any = {};
 
-    // If role is consumer → show only their redeems
     if (role === "consumer" && userId) {
       query.user = userId;
     }
 
-    // If role is business → show redeems for rewards owned by this business
     if (role === "business" && userId) {
-      query["reward.business"] = userId;
+      query.business = userId;
     }
 
-    // Get total documents
+    // Filter by status if provided
+    if (status) {
+      query.status = status;
+    }
+
     const total = await Redeem.countDocuments(query);
     const totalPages = Math.ceil(total / limit);
 
-    // Fetch paginated + populated data
     const redeems = await Redeem.find(query)
       .populate("user", "firstName lastName email phone role")
       .populate({
