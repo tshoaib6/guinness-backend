@@ -24,7 +24,7 @@ router.get("/getAllBusinesses", getAllBusinessesController);
 
 // Get business by ID
 router.get("/getBusinessById/:id", getBusinessByIdController);
-
+      
 // Update business by ID
 router.patch(
   "/updateBusiness/:id",

@@ -45,13 +45,18 @@ export const getAllRewardsService = async (options: PaginationOptions = {}) => {
   try {
     const query: any = {};
 
-    // 🔍 Optional search by reward name
-    if (options.search && options.search.trim() !== "") {
+    if (options.search?.trim()) {
       query.rewardName = { $regex: options.search.trim(), $options: "i" };
     }
 
-    // ✅ Use your paginate utility
+    // ✔ Step 1: Get paginated results
     const result = await paginate(Reward, query, options);
+
+    // ✔ Step 2: Populate *after* pagination
+    const populatedData = await Reward.populate(result.data, {
+      path: "business",
+      select: "name", // only business name
+    });
 
     return {
       success: true,
@@ -62,7 +67,7 @@ export const getAllRewardsService = async (options: PaginationOptions = {}) => {
         limit: result.limit,
         totalPages: result.totalPages,
       },
-      data: result.data,
+      data: populatedData, // ⭐ returning populated documents
     };
   } catch (error: any) {
     return {
@@ -71,6 +76,7 @@ export const getAllRewardsService = async (options: PaginationOptions = {}) => {
     };
   }
 };
+
 
 export const updateRewardStatusService = async (rewardId: string, isActive: boolean) => {
   try {
