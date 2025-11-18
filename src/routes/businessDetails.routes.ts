@@ -5,6 +5,7 @@ import {
   getBusinessDetailsController,
   updateBusinessDetailsController,
   deleteBusinessDetailsController,
+  getAllBusinessDetailsController,
 } from "../controllers/businessDetails.controller";
 
 const router = Router();
@@ -20,5 +21,7 @@ router.put("/update-business-details/:id", updateBusinessDetailsController);
 
 // DELETE
 router.delete("/delete-business-details/:id", deleteBusinessDetailsController);
+
+router.get("/get-all-business-details", getAllBusinessDetailsController);
 
 export default router;
