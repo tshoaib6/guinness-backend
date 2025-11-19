@@ -1,7 +1,7 @@
 // routes/redeemRoutes.ts
 import { Router } from "express";
-import { createRedeemController, getAllRedeemsController } from "../controllers/redeem.controller";
-import { authenticateUser } from "../middlewares/auth";
+import { createRedeemController, getAllRedeemsController, updateRedeemStatusController } from "../controllers/redeem.controller";
+import { authenticateAdmin, authenticateUser } from "../middlewares/auth";
 
 const router = Router();
 
@@ -9,6 +9,8 @@ const router = Router();
 router.post("/redeem", authenticateUser, createRedeemController);
 
 router.get("/geAllRedeems", authenticateUser, getAllRedeemsController);
+
+router.put("/update-status", authenticateAdmin, updateRedeemStatusController);
 
 
 export default router;

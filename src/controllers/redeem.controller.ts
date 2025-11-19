@@ -1,7 +1,12 @@
 import { Response } from "express";
-import { createRedeemService, getAllRedeemsService } from "../services/redeem.service";
+import { createRedeemService, getAllRedeemsService, updateRedeemStatusService } from "../services/redeem.service";
 import { AuthRequest } from "../middlewares/auth"; // import our exported interface
 import { PaginationOptions } from "../utils/pagination";
+interface UpdateRedeemStatusBody {
+  redeemId: string;
+  status: "pending" | "delivered";
+}
+
 
 export const createRedeemController = async (req: AuthRequest, res: Response) => {
   try {
@@ -73,5 +78,35 @@ export const getAllRedeemsController = async (req: AuthRequest, res: Response) =
       success: false,
       message: error.message || "Server error",
     });
+  }
+};
+
+export const updateRedeemStatusController = async (
+  req: AuthRequest,
+  res: Response
+): Promise<any> => {
+  try {
+    const body = req.body as unknown as UpdateRedeemStatusBody;
+    const { redeemId, status } = body;
+
+    if (!redeemId || !status) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Redeem ID and status are required" });
+    }
+
+    if (!["pending", "delivered"].includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid status value" });
+    }
+
+    const result = await updateRedeemStatusService(redeemId, status);
+
+    return res.status(result.success ? 200 : 400).json(result);
+  } catch (error: any) {
+    return res
+      .status(500)
+      .json({ success: false, message: error.message || "Server error" });
   }
 };

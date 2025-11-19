@@ -127,3 +127,32 @@ export const getAllRedeemsService = async (
     };
   }
 };
+
+
+export const updateRedeemStatusService = async (
+  redeemId: string,
+  newStatus: "pending" | "delivered"
+) => {
+  try {
+    const redeem = await Redeem.findById(redeemId);
+
+    if (!redeem) {
+      return { success: false, message: "Redeem record not found" };
+    }
+
+    // Update status
+    redeem.status = newStatus;
+    await redeem.save();
+
+    return {
+      success: true,
+      message: `Redeem status updated to ${newStatus}`,
+      data: redeem,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.message || "Failed to update redeem status",
+    };
+  }
+};
