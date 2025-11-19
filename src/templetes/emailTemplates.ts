@@ -28,7 +28,7 @@ export const welcomeEmailTemplate = (name: string) => {
 };
 
 
-export const  passwordResetEmailTemplate = (name: string, otp: string) => {
+export const passwordResetEmailTemplate = (name: string, otp: string) => {
   const subject = 'Guinness Rewards Password Reset OTP';
   const html = `
     <div style="font-family: Arial, sans-serif; line-height: 1.5;">
@@ -42,3 +42,29 @@ export const  passwordResetEmailTemplate = (name: string, otp: string) => {
   `;
   return { subject, html };
 };
+
+export const redeemSuccessEmailTemplate = (
+  name: string,
+  rewardName: string,
+  pointsUsed: number,
+  redeemCode: string,
+  status: string = "Pending"
+) => {
+  const subject = "Reward Redemption Successful!";
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5;">
+      <h2>Hi ${name},</h2>
+      <p>Your reward redemption request has been successfully submitted!</p>
+      <ul>
+        <li><strong>Reward:</strong> ${rewardName}</li>
+        <li><strong>Points Used:</strong> ${pointsUsed}</li>
+        <li><strong>Redeem Code:</strong> ${redeemCode}</li>
+        <li><strong>Status:</strong> ${status}</li>
+      </ul>
+      <p>Please keep this code safe. You will need it to claim your reward at the business.</p>
+      <p>Cheers,<br/>Guinness Rewards Team</p>
+    </div>
+  `;
+  return { subject, html };
+};
+

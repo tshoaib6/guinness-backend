@@ -4,6 +4,8 @@ import { Reward } from "../models/rewards.model";
 import { PaginationOptions } from "../utils/pagination";
 
 import crypto from "crypto";
+import { redeemSuccessEmailTemplate } from "../templetes/emailTemplates";
+import { sendEmail } from "../utils/email";
 
 export const createRedeemService = async (userId: string, rewardId: string) => {
   try {
@@ -25,9 +27,8 @@ export const createRedeemService = async (userId: string, rewardId: string) => {
     user.points -= reward.pointsRequired;
     await user.save();
 
-    // Generate unique 8-digit redeem code
-    const redeemCode = crypto.randomBytes(4).toString("hex").toUpperCase();
-    // Example: "9F3A1CDE"
+    // Generate unique 8-character redeem code
+    const redeemCode = crypto.randomBytes(4).toString("hex").toUpperCase(); // e.g., "9F3A1CDE"
 
     // Create redeem record
     const redeem = await Redeem.create({
@@ -35,13 +36,32 @@ export const createRedeemService = async (userId: string, rewardId: string) => {
       reward: reward._id,
       business: reward.business,
       pointsUsed: reward.pointsRequired,
-      status: "pending", // default
-      redeemCode,        // NEW
+      status: "pending",
+      redeemCode,
     });
+
+    // Prepare user name and email safely
+    const userName = user.firstName || user.email || "Valued User";
+    const userEmail = user.email || ""; // fallback to empty string to satisfy TS
+
+    if (userEmail) {
+      // Send email using template
+      const { subject, html } = redeemSuccessEmailTemplate(
+        userName,
+        reward.rewardName,
+        reward.pointsRequired,
+        redeemCode,
+        "Pending"
+      );
+
+      await sendEmail({ to: userEmail, subject, html });
+    } else {
+      console.warn(`No email found for user ${userId}. Skipping email send.`);
+    }
 
     return {
       success: true,
-      message: "Reward redemption request submitted!",
+      message: "Reward redemption request submitted! Email sent successfully.",
       data: redeem,
     };
   } catch (error: any) {
