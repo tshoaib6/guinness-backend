@@ -75,12 +75,28 @@ export const getUserHistoryByUserIdService = async (
 ): Promise<PaginationResult<any>> => {
     try {
         const query = { user: new Types.ObjectId(userId) };
-        return await paginate(UserHistory, query, options, "");
+
+        // Paginate first
+        const result = await paginate(UserHistory, query, options, "");
+
+        // Populate relatedBusiness field with firstName, lastName, role, businessInfo
+        const dataWithBusinessInfo = await UserHistory.populate(result.data, [
+            {
+                path: "relatedBusiness",
+                select: "firstName lastName role businessInfo.businessName businessInfo.businessType",
+            },
+        ]);
+
+        return {
+            ...result,
+            data: dataWithBusinessInfo,
+        };
     } catch (error) {
         console.error(error);
         throw new Error("Failed to fetch user history");
     }
 };
+
 
 // Get user history by business ID with pagination
 export const getUserHistoryByBusinessIdService = async (
