@@ -1,5 +1,6 @@
 import { UserHistory, IUserHistory } from "../models/userHistory.model";
 import { Types } from "mongoose";
+import { paginate, PaginationOptions, PaginationResult } from "../utils/pagination";
 
 interface CreateHistoryInput {
     userId: string;
@@ -39,34 +40,40 @@ export const recordUserHistoryService = async ({
 };
 
 // Get all history
-export const getAllUserHistoryService = async () => {
+// Get all user histories with pagination
+export const getAllUserHistoryService = async (options: PaginationOptions = {}): Promise<PaginationResult<any>> => {
     try {
-        const histories = await UserHistory.find().sort({ timestamp: -1 });
-        return { success: true, data: histories };
+        return await paginate(UserHistory, {}, options, "");
     } catch (error) {
         console.error(error);
-        return { success: false, message: "Failed to fetch histories" };
+        throw new Error("Failed to fetch histories");
     }
 };
 
-// Get history by user ID
-export const getUserHistoryByUserIdService = async (userId: string) => {
+// Get user history by user ID with pagination
+export const getUserHistoryByUserIdService = async (
+    userId: string,
+    options: PaginationOptions = {}
+): Promise<PaginationResult<any>> => {
     try {
-        const histories = await UserHistory.find({ user: new Types.ObjectId(userId) }).sort({ timestamp: -1 });
-        return { success: true, data: histories };
+        const query = { user: new Types.ObjectId(userId) };
+        return await paginate(UserHistory, query, options, "");
     } catch (error) {
         console.error(error);
-        return { success: false, message: "Failed to fetch user history" };
+        throw new Error("Failed to fetch user history");
     }
 };
 
-// Get history by business ID
-export const getUserHistoryByBusinessIdService = async (businessId: string) => {
+// Get user history by business ID with pagination
+export const getUserHistoryByBusinessIdService = async (
+    businessId: string,
+    options: PaginationOptions = {}
+): Promise<PaginationResult<any>> => {
     try {
-        const histories = await UserHistory.find({ relatedBusiness: new Types.ObjectId(businessId) }).sort({ timestamp: -1 });
-        return { success: true, data: histories };
+        const query = { relatedBusiness: new Types.ObjectId(businessId) };
+        return await paginate(UserHistory, query, options, "");
     } catch (error) {
         console.error(error);
-        return { success: false, message: "Failed to fetch business history" };
+        throw new Error("Failed to fetch business history");
     }
 };
