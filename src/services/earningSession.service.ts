@@ -117,32 +117,43 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
 };
 
 
+
+// Get active single QR sessions
 export const getSingleQrSessionsService = async () => {
-    const sessions = await EarningSession.find({
-        type: "qr_code_create_single"
-    }).sort({ createdAt: -1 });
+    try {
+        const now = new Date();
+        const sessions = await EarningSession.find({
+            type: "qr_code_create_single",
+            isActive: true,
+            $or: [
+                { expiresAt: { $gt: now } }, // Not expired
+                { expiresAt: null }           // No expiration
+            ]
+        }).sort({ createdAt: -1 });
 
-    for (const s of sessions) {
-        if (s.expiresAt && s.expiresAt.getTime() < Date.now() && s.isActive) {
-            s.isActive = false;
-            await s.save();
-        }
+        return { success: true, data: sessions };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to fetch single QR sessions" };
     }
-
-    return { success: true, data: sessions };
 };
 
+// Get active round QR sessions
 export const getRoundQrSessionsService = async () => {
-    const sessions = await EarningSession.find({
-        type: "qr_code_create_round"
-    }).sort({ createdAt: -1 });
+    try {
+        const now = new Date();
+        const sessions = await EarningSession.find({
+            type: "qr_code_create_round",
+            isActive: true,
+            $or: [
+                { expiresAt: { $gt: now } }, // Not expired
+                { expiresAt: null }           // No expiration
+            ]
+        }).sort({ createdAt: -1 });
 
-    for (const s of sessions) {
-        if (s.expiresAt && s.expiresAt.getTime() < Date.now() && s.isActive) {
-            s.isActive = false;
-            await s.save();
-        }
+        return { success: true, data: sessions };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to fetch round QR sessions" };
     }
-
-    return { success: true, data: sessions };
 };
