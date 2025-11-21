@@ -93,10 +93,23 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
     await consumer.save();
 
     // Update rum shop stats
+    // const owner = await User.findById(session.business);
+    // if (owner && owner.businessInfo) {
+    //     owner.businessInfo.stats = owner.businessInfo.stats || {};
+    //     owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+    //     await owner.save();
+    // }
+
+
     const owner = await User.findById(session.business);
     if (owner && owner.businessInfo) {
         owner.businessInfo.stats = owner.businessInfo.stats || {};
-        owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+
+        // Increment roundsSold only for "round" QR sessions
+        if ((session.type as "qr_code_create_round") === "qr_code_create_round") {
+            owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+        }
+
         await owner.save();
     }
 
