@@ -102,3 +102,22 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
 
     return { success: true, message: "Points added successfully.", points: consumer.points };
 };
+
+
+export const getSingleQrSessionsService = async () => {
+    const sessions = await EarningSession.find({
+        type: "qr_code_create_single"
+    })
+        .sort({ createdAt: -1 });
+
+    return { success: true, data: sessions };
+};
+
+export const getRoundQrSessionsService = async () => {
+    const sessions = await EarningSession.find({
+        type: "qr_code_create_round"
+    })
+        .sort({ createdAt: -1 });
+
+    return { success: true, data: sessions };
+};

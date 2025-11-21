@@ -4,6 +4,8 @@ import {
     createSingleQrSessionController,
     createRoundQrSessionController,
     redeemQrSessionController,
+    getSingleQrSessionsController,
+    getRoundQrSessionsController,
 } from "../controllers/earningSession.controller"; // updated controller import
 import { authenticateUser } from "../middlewares/auth";
 
@@ -18,4 +20,8 @@ router.post("/create-qr-round", createRoundQrSessionController);
 // Consumer redeems a QR code
 router.post("/redeem-qr-code", authenticateUser, redeemQrSessionController);
 
+router.get("/get-all-single-qr", getSingleQrSessionsController);
+
+// Get all Round QR sessions
+router.get("/get-all-round-qr", getRoundQrSessionsController);
 export default router;

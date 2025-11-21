@@ -3,7 +3,9 @@ import { Request, Response } from "express";
 import {
     createSingleQrSessionService,
     createRoundQrSessionService,
-    redeemQrSessionService
+    redeemQrSessionService,
+    getSingleQrSessionsService,
+    getRoundQrSessionsService
 } from "../services/earningSession.service";
 
 // Owner: Create a new Single QR session (5 points)
@@ -56,5 +58,23 @@ export const redeemQrSessionController = async (req: Request, res: Response) => 
     } catch (error) {
         console.error("Error redeeming QR session:", error);
         return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const getSingleQrSessionsController = async (req: Request, res: Response) => {
+    try {
+        const result = await getSingleQrSessionsService();
+        return res.json(result);
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const getRoundQrSessionsController = async (req: Request, res: Response) => {
+    try {
+        const result = await getRoundQrSessionsService();
+        return res.json(result);
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: error.message });
     }
 };
