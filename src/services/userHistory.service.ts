@@ -40,15 +40,33 @@ export const recordUserHistoryService = async ({
 };
 
 // Get all history
-// Get all user histories with pagination
-export const getAllUserHistoryService = async (options: PaginationOptions = {}): Promise<PaginationResult<any>> => {
+export const getAllUserHistoryService = async (
+    options: PaginationOptions = {}
+): Promise<PaginationResult<any>> => {
     try {
-        return await paginate(UserHistory, {}, options, "");
+        const page = options.page && options.page > 0 ? options.page : 1;
+        const limit = options.limit && options.limit > 0 ? options.limit : 20;
+        const sortBy = options.sortBy || "createdAt";
+        const sortOrder = options.sortOrder === "asc" ? 1 : -1;
+
+        const total = await UserHistory.countDocuments({});
+        const totalPages = Math.ceil(total / limit);
+
+        const histories = await UserHistory.find({})
+            .populate("user", "firstName lastName role")
+            .populate("relatedBusiness", "businessInfo.businessName businessInfo.businessType")
+            .sort({ [sortBy]: sortOrder })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+
+        return { total, page, limit, totalPages, data: histories };
     } catch (error) {
         console.error(error);
         throw new Error("Failed to fetch histories");
     }
 };
+
 
 // Get user history by user ID with pagination
 export const getUserHistoryByUserIdService = async (
