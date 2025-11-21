@@ -65,22 +65,34 @@ export const createRoundQrSessionService = async (businessId: string) => {
 };
 
 // ---------------- Consumer: Redeem QR ----------------
+// ---------------- Consumer: Redeem QR ----------------
 export const redeemQrSessionService = async (consumerId: string, qrValue: string) => {
     const session = await EarningSession.findOne({
         value: qrValue,
         type: { $in: ["qr_code_create_single", "qr_code_create_round"] }
-    }); if (!session) return { success: false, message: "Invalid QR code." };
-    if (session.expiresAt && session.expiresAt < new Date())
-        return { success: false, message: "QR code expired." };
+    });
+
+    if (!session) return { success: false, message: "Invalid QR code." };
+
+    // Check expiry
+    if (session.expiresAt && session.expiresAt < new Date()) {
+        session.isActive = false; // deactivate only on expiry
+        await session.save();
+        return { success: false, message: "QR code expired and deactivated." };
+    }
+
+    // If manually inactive for any reason
+    if (!session.isActive)
+        return { success: false, message: "QR code is inactive." };
 
     const consumer = await User.findById(consumerId);
     if (!consumer) return { success: false, message: "Consumer not found." };
 
-    // Update consumer points
+    // Add points to consumer
     consumer.points += session.points;
     await consumer.save();
 
-    // Update rum shop rounds sold
+    // Update rum shop stats
     const owner = await User.findById(session.business);
     if (owner && owner.businessInfo) {
         owner.businessInfo.stats = owner.businessInfo.stats || {};
@@ -88,7 +100,7 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
         await owner.save();
     }
 
-    // Record history for QR redemption (consumer)
+    // Record history
     await recordUserHistoryService({
         userId: consumerId,
         actionType: "qr_scan",
@@ -98,7 +110,8 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
         details: { qrValue, redeemedBy: "consumer", category: session.meta?.category || "unknown" }
     });
 
-    await session.save();
+    // ❌ Do NOT deactivate after scan
+    // session.isActive remains true
 
     return { success: true, message: "Points added successfully.", points: consumer.points };
 };
@@ -107,8 +120,14 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
 export const getSingleQrSessionsService = async () => {
     const sessions = await EarningSession.find({
         type: "qr_code_create_single"
-    })
-        .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
+
+    for (const s of sessions) {
+        if (s.expiresAt && s.expiresAt.getTime() < Date.now() && s.isActive) {
+            s.isActive = false;
+            await s.save();
+        }
+    }
 
     return { success: true, data: sessions };
 };
@@ -116,8 +135,14 @@ export const getSingleQrSessionsService = async () => {
 export const getRoundQrSessionsService = async () => {
     const sessions = await EarningSession.find({
         type: "qr_code_create_round"
-    })
-        .sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 });
+
+    for (const s of sessions) {
+        if (s.expiresAt && s.expiresAt.getTime() < Date.now() && s.isActive) {
+            s.isActive = false;
+            await s.save();
+        }
+    }
 
     return { success: true, data: sessions };
 };
