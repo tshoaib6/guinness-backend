@@ -1,57 +1,57 @@
-  import { User, IUser } from "../models/user.model";
-  import { sendEmail } from "../utils/email";
-  import { otpEmailTemplate, passwordResetEmailTemplate, welcomeEmailTemplate } from "../templetes/emailTemplates";
-  import bcrypt from "bcrypt";
-  import jwt from "jsonwebtoken";
+import { User, IUser } from "../models/user.model";
+import { sendEmail } from "../utils/email";
+import { otpEmailTemplate, passwordResetEmailTemplate, welcomeEmailTemplate } from "../templetes/emailTemplates";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 import { paginate, PaginationOptions } from "../utils/pagination";
 
-  interface RegisterUserData {
-  role: "consumer" | "business" | "admin";       
-    phone: string;
-    email: string;
-    password: string;
-    termsAccepted: boolean;
+interface RegisterUserData {
+  role: "consumer" | "business" | "admin";
+  phone: string;
+  email: string;
+  password: string;
+  termsAccepted: boolean;
 
-      // Admin-specific
+  // Admin-specific
   adminSecret?: string;
 
-    // Consumer-specific
-    firstName?: string;
-    lastName?: string;
-    dob?: string;
-    location?: string;
+  // Consumer-specific
+  firstName?: string;
+  lastName?: string;
+  dob?: string;
+  location?: string;
 
-    // Business-specific
-    businessName?: string;         
-    businessType?: "Rum Shop" | "Bar" | "Wholesaler";
-    registrationNumber?: string;
-    ownerName?: string;
-    address?: string;
-    taxId?: string;
-    bankAccount?: string;
-  }
+  // Business-specific
+  businessName?: string;
+  businessType?: "Rum Shop" | "Bar" | "Wholesaler";
+  registrationNumber?: string;
+  ownerName?: string;
+  address?: string;
+  taxId?: string;
+  bankAccount?: string;
+}
 
-  interface LoginUserData {
-    email: string;
-    password: string;
-  }
+interface LoginUserData {
+  email: string;
+  password: string;
+}
 interface FilterOptions {
   role?: "consumer" | "business" | "admin";
   email?: string;
 }
-  // ---------------- Helper Functions ----------------
-  const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
-    return age;
-  };
+// ---------------- Helper Functions ----------------
+const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const calculateAge = (dob: string) => {
+  const birthDate = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+  return age;
+};
 
-  // ---------------- Registration Service ----------------
- export const registerUserService = async (data: RegisterUserData) => {
+// ---------------- Registration Service ----------------
+export const registerUserService = async (data: RegisterUserData) => {
   const {
     role,
     firstName,
@@ -72,7 +72,7 @@ interface FilterOptions {
     adminSecret,
   } = data;
 
-  // ✅ Password Validation: At least 8 chars, 1 uppercase, 1 number
+  // ---------------- VALIDATE PASSWORD ----------------
   const passwordRegex = /^(?=.*[A-Z])(?=.*\d)[A-Za-z\d@$!%*?&]{8,}$/;
   if (!passwordRegex.test(password)) {
     return {
@@ -82,20 +82,19 @@ interface FilterOptions {
     };
   }
 
-  // ✅ Check if email already registered
+  // ---------------- CHECK USER EXISTS ----------------
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     return { success: false, message: "This email is already registered." };
   }
 
-  // ✅ Hash password
   const hashedPassword = await bcrypt.hash(password, 10);
-
-  // ✅ Generate OTP
   const otp = generateOTP();
-  const otpExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+  const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
-  // ---------- ADMIN REGISTRATION ----------
+  // =====================================================
+  //                 ADMIN REGISTRATION
+  // =====================================================
   if (role === "admin") {
     if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
       return { success: false, message: "Invalid admin secret key." };
@@ -106,17 +105,19 @@ interface FilterOptions {
       email,
       phone,
       password: hashedPassword,
-      otpVerified: true, // Admin skips OTP
+      otpVerified: true,
+      status: "active",
       termsAccepted,
       points: 0,
-      status: "active",
     });
 
     await newAdmin.save();
     return { success: true, message: "Admin registered successfully." };
   }
 
-  // ---------- CONSUMER REGISTRATION ----------
+  // =====================================================
+  //                 CONSUMER REGISTRATION
+  // =====================================================
   if (role === "consumer") {
     if (!dob) return { success: false, message: "Date of birth is required." };
 
@@ -125,7 +126,7 @@ interface FilterOptions {
       return { success: false, message: "You must be 18 or older to register." };
     }
 
-    const newUser = new User({
+    const newConsumer = new User({
       role,
       firstName,
       lastName,
@@ -143,9 +144,8 @@ interface FilterOptions {
       status: "active",
     });
 
-    await newUser.save();
+    await newConsumer.save();
 
-    // Send OTP email
     const { subject, html } = otpEmailTemplate(firstName || "User", otp);
     await sendEmail({ to: email, subject, html });
 
@@ -155,28 +155,50 @@ interface FilterOptions {
     };
   }
 
-  // ---------- BUSINESS REGISTRATION ----------
+  // =====================================================
+  //                 BUSINESS REGISTRATION
+  // =====================================================
   if (role === "business") {
-    if (!businessName || !businessType || !ownerName || !address) {
+    if (!businessName || !ownerName || !address) {
       return {
         success: false,
         message:
-          "Missing required business fields: businessName, businessType, ownerName, and address.",
+          "Missing required fields: businessName, ownerName, and address.",
       };
     }
 
+    /**
+     * DYNAMIC BUSINESS TYPE LOGIC
+     * ----------------------------------------------
+     * No more hardcoded:
+     *   Rum Shop / Bar / Wholesaler
+     * 
+     * Now ANY businessType is accepted.
+     */
+    const dynamicBusinessType = businessType || "General";
+
+    /**
+     * IMPORTANT:
+     * The new earning system is NOT handled here.
+     * It is connected through:
+     *   - BusinessDetails model
+     *   - PointsEarnHistory model
+     *   - QROrReceipt model
+     */
+
     const newBusiness = new User({
-      role,
-      phone,
+      role: "business",
       email,
+      phone,
       password: hashedPassword,
-      termsAccepted,
       otp,
       otpExpires,
       otpVerified: false,
+      status: "pending",
+      termsAccepted,
       businessInfo: {
         businessName,
-        businessType,
+        businessType: dynamicBusinessType, // ⬅️ Now fully dynamic
         registrationNumber,
         ownerName,
         phone,
@@ -186,7 +208,17 @@ interface FilterOptions {
         bankAccount,
         approvedByAdmin: false,
       },
-      status: "pending", // Pending until admin approval
+
+      /**
+       * NEW FIELD (aligned with updated model)
+       * Business statistics are created empty
+       * and updated automatically later.
+       */
+      stats: {
+        totalReceipts: 0,
+        totalQRCodes: 0,
+        totalPointsGiven: 0,
+      },
     });
 
     await newBusiness.save();
@@ -197,7 +229,7 @@ interface FilterOptions {
     return {
       success: true,
       message:
-        "Business registration submitted. OTP sent to email. Admin approval required after verification.",
+        "Business registration submitted. OTP sent. Admin approval required after verification.",
     };
   }
 
@@ -205,7 +237,7 @@ interface FilterOptions {
 };
 
 
-  // ---------------- OTP Verification Service ----------------
+// ---------------- OTP Verification Service ----------------
 export const verifyOtpService = async (email: string, otp: string) => {
   const user = await User.findOne({ email });
   if (!user) return { success: false, message: "User not found." };
@@ -237,48 +269,48 @@ export const verifyOtpService = async (email: string, otp: string) => {
 };
 
 
-  // ---------------- Login Service ----------------
-    export const loginUserService = async ({ email, password }: LoginUserData) => {
-      const user = await User.findOne({ email });
-      if (!user) return { success: false, message: "User not found." };
-      if (!user.otpVerified)
-        return { success: false, message: "Email not verified. Please verify first." };
+// ---------------- Login Service ----------------
+export const loginUserService = async ({ email, password }: LoginUserData) => {
+  const user = await User.findOne({ email });
+  if (!user) return { success: false, message: "User not found." };
+  if (!user.otpVerified)
+    return { success: false, message: "Email not verified. Please verify first." };
 
-      if (user.role === "business" && !user.businessInfo?.approvedByAdmin) {
-        return { success: false, message: "Admin approval pending." };
-      }
+  if (user.role === "business" && !user.businessInfo?.approvedByAdmin) {
+    return { success: false, message: "Admin approval pending." };
+  }
   if (user.status === "blocked") {
     return { success: false, message: "Your account is blocked. Please contact support." };
   }
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) return { success: false, message: "Invalid password." };
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) return { success: false, message: "Invalid password." };
 
-      const token = jwt.sign(
-        { id: user._id, email: user.email, role: user.role },
-        process.env.JWT_SECRET as string,
-        { expiresIn: "7d" }
-      );
+  const token = jwt.sign(
+    { id: user._id, email: user.email, role: user.role },
+    process.env.JWT_SECRET as string,
+    { expiresIn: "7d" }
+  );
 
-      return {
-        success: true,
-        message: "Login successful!",
-        token,
-        user: {
-          id: user._id,
-          role: user.role,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          email: user.email,
-          phone: user.phone,
-          location: user.location,
-          businessInfo: user.businessInfo,
-          points: user.points,
-        },
-      };
-    };
+  return {
+    success: true,
+    message: "Login successful!",
+    token,
+    user: {
+      id: user._id,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      email: user.email,
+      phone: user.phone,
+      location: user.location,
+      businessInfo: user.businessInfo,
+      points: user.points,
+    },
+  };
+};
 
-  // ---------------- Admin: Fetch Pending Businesses ----------------
- export const getPendingBusinesses = async (pagination: PaginationOptions = {}) => {
+// ---------------- Admin: Fetch Pending Businesses ----------------
+export const getPendingBusinesses = async (pagination: PaginationOptions = {}) => {
   const query = {
     role: "business",
     "businessInfo.approvedByAdmin": false,
@@ -292,23 +324,23 @@ export const verifyOtpService = async (email: string, otp: string) => {
 
   return { success: true, ...result };
 };
-  // ---------------- Admin: Approve / Reject Business ----------------
-  export const approveBusinessService = async (userId: string) => {
-    const user = await User.findById(userId);
-    if (!user || user.role !== "business") return { success: false, message: "Business not found." };
+// ---------------- Admin: Approve / Reject Business ----------------
+export const approveBusinessService = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user || user.role !== "business") return { success: false, message: "Business not found." };
 
-    user.businessInfo!.approvedByAdmin = true;
-    await user.save();
-    return { success: true, message: "Business approved successfully." };
-  };
+  user.businessInfo!.approvedByAdmin = true;
+  await user.save();
+  return { success: true, message: "Business approved successfully." };
+};
 
-  export const rejectBusinessService = async (userId: string) => {
-    const user = await User.findById(userId);
-    if (!user || user.role !== "business") return { success: false, message: "Business not found." }; 
+export const rejectBusinessService = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user || user.role !== "business") return { success: false, message: "Business not found." };
 
-    await user.deleteOne();
-    return { success: true, message: "Business registration rejected and removed." };
-  };
+  await user.deleteOne();
+  return { success: true, message: "Business registration rejected and removed." };
+};
 export const forgotPasswordService = async (email: string) => {
   const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires");
   if (!user) return { success: false, message: "User not found." };
@@ -405,13 +437,13 @@ export const getAllUsersService = async (
     User,
     query,
     pagination,
-    "firstName lastName email phone role age points location businessInfo.approvedByAdmin businessInfo.businessType businessInfo.ownerName businessInfo.address"
+    "firstName lastName email phone role age points location businessInfo"
   );
 
   // Ensure result.docs exists
   const docs = Array.isArray(result.docs) ? result.docs : [];
 
-  // Map over docs to filter businessInfo
+  // Map over docs to filter businessInfo dynamically
   const modifiedDocs = docs.map((user: any) => {
     const businessInfo = user.businessInfo || null;
 
@@ -419,11 +451,13 @@ export const getAllUsersService = async (
       ...user.toObject(),
       businessInfo: businessInfo
         ? {
-            approvedByAdmin: businessInfo.approvedByAdmin,
-            businessType: businessInfo.businessType,
-            ownerName: businessInfo.ownerName,
-            address: businessInfo.address,
-          }
+          approvedByAdmin: businessInfo.approvedByAdmin,
+          businessType: businessInfo.businessType,
+          ownerName: businessInfo.ownerName,
+          address: businessInfo.address,
+          method: businessInfo.method,
+          stats: businessInfo.stats,
+        }
         : null,
     };
   });
@@ -443,9 +477,21 @@ export const getUserByIdService = async (userId: string) => {
     return { success: false, message: "User not found." };
   }
 
-  return { success: true, data: user };
-};
+  // Filter businessInfo dynamically
+  const businessInfo = user.businessInfo || null;
+  const filteredBusinessInfo = businessInfo
+    ? {
+      approvedByAdmin: businessInfo.approvedByAdmin,
+      businessType: businessInfo.businessType,
+      ownerName: businessInfo.ownerName,
+      address: businessInfo.address,
+      method: businessInfo.method,
+      stats: businessInfo.stats,
+    }
+    : null;
 
+  return { success: true, data: { ...user, businessInfo: filteredBusinessInfo } };
+};
 
 export const deleteUserService = async (userId: string) => {
   const user = await User.findById(userId);

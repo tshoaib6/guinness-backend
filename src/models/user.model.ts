@@ -6,10 +6,12 @@ export interface IUser extends Document {
   lastName?: string;
   email?: string;
   password: string;
-  dob?: Date;   
+  dob?: Date;
   age?: number;
   location?: string;
   role: "consumer" | "business" | "admin";
+
+  // Business-specific fields
   businessInfo?: {
     businessName: string;
     businessType: "Rum Shop" | "Bar" | "Wholesaler";
@@ -17,28 +19,40 @@ export interface IUser extends Document {
     ownerName?: string;
     phone?: string;
     email?: string;
-    address?: string; 
+    address?: string;
     taxId?: string;
     bankAccount?: string;
     approvedByAdmin: boolean;
+
+    // NEW: how the business gives points
+    method?: "scan_qr" | "upload_receipt";
+
+    // NEW: business stats for QR scans + receipt uploads
+    stats?: {
+      roundsSold?: number;       // Rum Shop, Bar
+      casesSold?: number;        // Wholesaler
+      receiptsUploaded?: number; // Receipt-based businesses
+    };
   };
+
   points: number;
+
   otp: string | null;
   otpExpires: Date | null;
   otpVerified: boolean;
   termsAccepted: boolean;
+
   passwordResetOtp?: string | null;
   passwordResetOtpExpires?: Date | null;
-  passwordResetVerified?: boolean; // NEW flag for 3-step flow
+  passwordResetVerified?: boolean;
 
-  status: "active" | "blocked" | "pending"; // New field
+  status: "active" | "blocked" | "pending";
   createdAt: Date;
   updatedAt: Date;
 }
 
 const userSchema = new Schema<IUser>(
   {
-    // Common fields
     phone: { type: String, required: true, unique: true },
     firstName: { type: String },
     lastName: { type: String },
@@ -54,7 +68,6 @@ const userSchema = new Schema<IUser>(
       required: true,
     },
 
-    // Business-specific fields
     businessInfo: {
       businessName: { type: String },
       businessType: {
@@ -69,24 +82,39 @@ const userSchema = new Schema<IUser>(
       taxId: { type: String },
       bankAccount: { type: String },
       approvedByAdmin: { type: Boolean, default: false },
+
+      // NEW: business method
+      method: {
+        type: String,
+        enum: ["scan_qr", "upload_receipt"],
+        default: "scan_qr",
+      },
+
+      // NEW: stats based on QR scanning & receipt uploads
+      stats: {
+        roundsSold: { type: Number, default: 0 },
+        casesSold: { type: Number, default: 0 },
+        receiptsUploaded: { type: Number, default: 0 },
+      }
     },
 
-    // Common system fields
     points: { type: Number, default: 0 },
+
     otp: { type: String, default: null },
     otpExpires: { type: Date, default: null },
     otpVerified: { type: Boolean, default: false },
     termsAccepted: { type: Boolean, required: true },
+
     passwordResetOtp: { type: String, default: null },
     passwordResetOtpExpires: { type: Date, default: null },
     passwordResetVerified: { type: Boolean, default: false },
 
-    status: { type: String, enum: ["active", "blocked", "pending"], default: "active", required: true }, // NEW
+    status: { type: String, enum: ["active", "blocked", "pending"], default: "active", required: true },
   },
   { timestamps: true }
 );
 
-// Auto-calculate age if dob exists
+// Auto-calc age
 userSchema.pre("save", function (next) {
   if (this.dob) {
     const today = new Date();
@@ -101,13 +129,17 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-// -------------------- Indexes for optimization --------------------
-userSchema.index({ email: 1 }, { unique: true, sparse: true }); // email unique
-userSchema.index({ phone: 1 }, { unique: true }); // phone unique
-userSchema.index({ role: 1, "businessInfo.approvedByAdmin": 1 }); // filter businesses
-userSchema.index({ otp: 1 }); // OTP queries
-userSchema.index({ passwordResetOtp: 1 }); // Password reset OTP queries
-userSchema.index({ firstName: "text", lastName: "text", "businessInfo.businessName": "text" }); // text search
-userSchema.index({ status: 1 }); // filter active/blocked users quickly
+// Indexes
+userSchema.index({ email: 1 }, { unique: true, sparse: true });
+userSchema.index({ phone: 1 }, { unique: true });
+userSchema.index({ role: 1, "businessInfo.approvedByAdmin": 1 });
+userSchema.index({ otp: 1 });
+userSchema.index({ passwordResetOtp: 1 });
+userSchema.index({
+  firstName: "text",
+  lastName: "text",
+  "businessInfo.businessName": "text",
+});
+userSchema.index({ status: 1 });
 
 export const User = model<IUser>("User", userSchema);
