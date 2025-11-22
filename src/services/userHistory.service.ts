@@ -83,7 +83,7 @@ export const getUserHistoryByUserIdService = async (
         const dataWithBusinessInfo = await UserHistory.populate(result.data, [
             {
                 path: "relatedBusiness",
-                select: "firstName lastName role businessInfo.businessName businessInfo.businessType",
+                select: "firstName lastName role businessInfo.businessName businessInfo.businessType businessInfo.ownerName businessInfo.registrationNumber",
             },
         ]);
 
