@@ -112,15 +112,17 @@ export const getUserHistoryByBusinessIdService = async (
         throw new Error("Failed to fetch business history");
     }
 };
-export const getBusinessQrHistoryService = async (businessId: string) => {
+export const getBusinessQrHistoryService = async (
+    businessId: string,
+    options: PaginationOptions = {}
+) => {
     try {
         const businessObjectId = new Types.ObjectId(businessId);
 
-        const history = await EarningSession.aggregate([
-            // Only QR codes created by this business
+        // Run aggregation to get flattened history
+        const aggregation = EarningSession.aggregate([
             { $match: { business: businessObjectId } },
 
-            // Lookup business info
             {
                 $lookup: {
                     from: "users",
@@ -131,26 +133,13 @@ export const getBusinessQrHistoryService = async (businessId: string) => {
             },
             { $unwind: "$business" },
 
-            // Lookup scans
             {
                 $lookup: {
                     from: "userhistories",
                     let: { sessionId: "$_id" },
                     pipeline: [
-                        {
-                            $match: {
-                                $expr: { $eq: ["$session", "$$sessionId"] },
-                                actionType: "qr_scan"
-                            }
-                        },
-                        {
-                            $lookup: {
-                                from: "users",
-                                localField: "user",
-                                foreignField: "_id",
-                                as: "consumer"
-                            }
-                        },
+                        { $match: { $expr: { $eq: ["$session", "$$sessionId"] }, actionType: "qr_scan" } },
+                        { $lookup: { from: "users", localField: "user", foreignField: "_id", as: "consumer" } },
                         { $unwind: "$consumer" },
                         {
                             $project: {
@@ -161,21 +150,14 @@ export const getBusinessQrHistoryService = async (businessId: string) => {
                                 qrValue: "$session",
                                 scannedAt: "$timestamp",
                                 type: "scan",
-                                points: "$points", // points earned on scan
-                                roundsSold: {
-                                    $cond: [{ $eq: ["$consumer.businessInfo.businessType", "Rum Shop"] }, "$consumer.businessInfo.stats.roundsSold", null]
-                                },
-                                casesSold: {
-                                    $cond: [{ $eq: ["$consumer.businessInfo.businessType", "Wholesaler"] }, "$consumer.businessInfo.stats.casesSold", null]
-                                }
-                            }
-                        }
+                                points: "$points",
+                            },
+                        },
                     ],
-                    as: "scans"
-                }
+                    as: "scans",
+                },
             },
 
-            // Project QR created by business
             {
                 $project: {
                     _id: 0,
@@ -186,32 +168,27 @@ export const getBusinessQrHistoryService = async (businessId: string) => {
                         businessType: "$business.businessInfo.businessType",
                         qrValue: "$value",
                         type: "creation",
-                        points: "$points", // points assigned for creating this QR
-                        roundsSold: {
-                            $cond: [{ $eq: ["$business.businessInfo.businessType", "Rum Shop"] }, "$business.businessInfo.stats.roundsSold", null]
-                        },
-                        casesSold: {
-                            $cond: [{ $eq: ["$business.businessInfo.businessType", "Wholesaler"] }, "$business.businessInfo.stats.casesSold", null]
-                        }
+                        points: "$points",
                     },
-                    scans: 1
-                }
+                    scans: 1,
+                },
             },
 
-            // Flatten: business record + scans
-            {
-                $project: {
-                    records: {
-                        $concatArrays: [["$businessRecord"], "$scans"]
-                    }
-                }
-            },
+            { $project: { records: { $concatArrays: [["$businessRecord"], "$scans"] } } },
             { $unwind: "$records" },
             { $replaceRoot: { newRoot: "$records" } },
-            { $sort: { qrValue: 1, scannedAt: 1 } } // Sort by QR then scan time
+            { $sort: { qrValue: 1, scannedAt: 1 } },
         ]);
 
-        return { success: true, data: history };
+        // Use your paginate utility
+        const allRecords = await aggregation.exec(); // get the full flattened array
+        const total = allRecords.length;
+        const page = options.page && options.page > 0 ? options.page : 1;
+        const limit = options.limit && options.limit > 0 ? options.limit : 20;
+        const totalPages = Math.ceil(total / limit);
+        const data = allRecords.slice((page - 1) * limit, page * limit);
+
+        return { success: true, data, total, page, limit, totalPages };
     } catch (error) {
         console.error(error);
         return { success: false, message: "Failed to fetch business QR history." };

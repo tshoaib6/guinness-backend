@@ -100,12 +100,24 @@ export const getBusinessQrHistoryController = async (req: Request, res: Response
             return res.status(400).json({ success: false, message: "Business ID is required" });
         }
 
-        // Call the generic service that fetches all QR codes and scans for any business type
-        const result = await getBusinessQrHistoryService(businessId);
+        // Extract pagination options from query params
+        const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+        const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 20;
+        const sortBy = req.query.sortBy ? String(req.query.sortBy) : undefined;
+        const sortOrder: "asc" | "desc" = req.query.sortOrder === "asc" ? "asc" : "desc";
+
+        const paginationOptions: PaginationOptions = { page, limit, sortBy, sortOrder };
+
+        // Call the service with pagination options
+        const result = await getBusinessQrHistoryService(businessId, paginationOptions);
 
         return res.status(result.success ? 200 : 500).json({
             success: result.success,
             data: result.data || [],
+            total: result.total || 0,
+            page: result.page || 1,
+            limit: result.limit || 20,
+            totalPages: result.totalPages || 1,
             message: result.success
                 ? "Business QR history fetched successfully."
                 : result.message,
