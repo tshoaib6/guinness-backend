@@ -4,6 +4,8 @@ import {
     getAllUserHistoryService,
     getUserHistoryByUserIdService,
     getUserHistoryByBusinessIdService,
+    getBusinessQrHistoryService,
+
 } from "../services/userHistory.service";
 import { PaginationOptions } from "../utils/pagination";
 
@@ -88,5 +90,28 @@ export const getUserHistoryByBusinessIdController = async (req: Request, res: Re
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: "Failed to fetch business history" });
+    }
+};
+
+export const getBusinessQrHistoryController = async (req: Request, res: Response) => {
+    try {
+        const { businessId } = req.params;
+        if (!businessId) {
+            return res.status(400).json({ success: false, message: "Business ID is required" });
+        }
+
+        // Call the generic service that fetches all QR codes and scans for any business type
+        const result = await getBusinessQrHistoryService(businessId);
+
+        return res.status(result.success ? 200 : 500).json({
+            success: result.success,
+            data: result.data || [],
+            message: result.success
+                ? "Business QR history fetched successfully."
+                : result.message,
+        });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Failed to fetch business QR history" });
     }
 };

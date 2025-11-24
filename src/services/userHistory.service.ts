@@ -1,6 +1,7 @@
 import { UserHistory, IUserHistory } from "../models/userHistory.model";
 import { Types } from "mongoose";
 import { paginate, PaginationOptions, PaginationResult } from "../utils/pagination";
+import { EarningSession } from "../models/earningSession.model";
 
 interface CreateHistoryInput {
     userId: string;
@@ -109,5 +110,110 @@ export const getUserHistoryByBusinessIdService = async (
     } catch (error) {
         console.error(error);
         throw new Error("Failed to fetch business history");
+    }
+};
+export const getBusinessQrHistoryService = async (businessId: string) => {
+    try {
+        const businessObjectId = new Types.ObjectId(businessId);
+
+        const history = await EarningSession.aggregate([
+            // Only QR codes created by this business
+            { $match: { business: businessObjectId } },
+
+            // Lookup business info
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "business",
+                    foreignField: "_id",
+                    as: "business",
+                },
+            },
+            { $unwind: "$business" },
+
+            // Lookup scans
+            {
+                $lookup: {
+                    from: "userhistories",
+                    let: { sessionId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $eq: ["$session", "$$sessionId"] },
+                                actionType: "qr_scan"
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "user",
+                                foreignField: "_id",
+                                as: "consumer"
+                            }
+                        },
+                        { $unwind: "$consumer" },
+                        {
+                            $project: {
+                                _id: 0,
+                                firstName: "$consumer.firstName",
+                                lastName: "$consumer.lastName",
+                                role: "$consumer.role",
+                                qrValue: "$session",
+                                scannedAt: "$timestamp",
+                                type: "scan",
+                                points: "$points", // points earned on scan
+                                roundsSold: {
+                                    $cond: [{ $eq: ["$consumer.businessInfo.businessType", "Rum Shop"] }, "$consumer.businessInfo.stats.roundsSold", null]
+                                },
+                                casesSold: {
+                                    $cond: [{ $eq: ["$consumer.businessInfo.businessType", "Wholesaler"] }, "$consumer.businessInfo.stats.casesSold", null]
+                                }
+                            }
+                        }
+                    ],
+                    as: "scans"
+                }
+            },
+
+            // Project QR created by business
+            {
+                $project: {
+                    _id: 0,
+                    businessRecord: {
+                        firstName: "$business.firstName",
+                        lastName: "$business.lastName",
+                        businessName: "$business.businessInfo.businessName",
+                        businessType: "$business.businessInfo.businessType",
+                        qrValue: "$value",
+                        type: "creation",
+                        points: "$points", // points assigned for creating this QR
+                        roundsSold: {
+                            $cond: [{ $eq: ["$business.businessInfo.businessType", "Rum Shop"] }, "$business.businessInfo.stats.roundsSold", null]
+                        },
+                        casesSold: {
+                            $cond: [{ $eq: ["$business.businessInfo.businessType", "Wholesaler"] }, "$business.businessInfo.stats.casesSold", null]
+                        }
+                    },
+                    scans: 1
+                }
+            },
+
+            // Flatten: business record + scans
+            {
+                $project: {
+                    records: {
+                        $concatArrays: [["$businessRecord"], "$scans"]
+                    }
+                }
+            },
+            { $unwind: "$records" },
+            { $replaceRoot: { newRoot: "$records" } },
+            { $sort: { qrValue: 1, scannedAt: 1 } } // Sort by QR then scan time
+        ]);
+
+        return { success: true, data: history };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to fetch business QR history." };
     }
 };
