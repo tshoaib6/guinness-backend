@@ -3,12 +3,15 @@ import { Request, Response } from "express";
 import {
     createSingleQrSessionService,
     createRoundQrSessionService,
+    createWholesaleQrSessionService,   // ✅ NEW
     redeemQrSessionService,
     getSingleQrSessionsService,
-    getRoundQrSessionsService
+    getRoundQrSessionsService,
+    getWholesaleQrSessionsService       // ✅ NEW
 } from "../services/earningSession.service";
 
-// Owner: Create a new Single QR session (5 points)
+
+// ------------------- Single QR -------------------
 export const createSingleQrSessionController = async (req: Request, res: Response) => {
     try {
         const { businessId } = req.body;
@@ -24,7 +27,8 @@ export const createSingleQrSessionController = async (req: Request, res: Respons
     }
 };
 
-// Owner: Create a new Round QR session (30 points)
+
+// ------------------- Round QR -------------------
 export const createRoundQrSessionController = async (req: Request, res: Response) => {
     try {
         const { businessId } = req.body;
@@ -40,7 +44,25 @@ export const createRoundQrSessionController = async (req: Request, res: Response
     }
 };
 
-// Consumer: Redeem a QR session
+
+// ------------------- Wholesale QR (NEW) -------------------
+export const createWholesaleQrSessionController = async (req: Request, res: Response) => {
+    try {
+        const { businessId } = req.body;
+        if (!businessId) {
+            return res.status(400).json({ success: false, message: "businessId is required" });
+        }
+
+        const result = await createWholesaleQrSessionService(businessId);
+        return res.status(201).json(result);
+    } catch (error) {
+        console.error("Error creating Wholesale QR session:", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+
+// ------------------- Redeem QR (Single/Round/Wholesale) -------------------
 export const redeemQrSessionController = async (req: Request, res: Response) => {
     try {
         const { consumerId, qrValue } = req.body;
@@ -61,6 +83,8 @@ export const redeemQrSessionController = async (req: Request, res: Response) => 
     }
 };
 
+
+// ------------------- Get Single QR Sessions -------------------
 export const getSingleQrSessionsController = async (req: Request, res: Response) => {
     try {
         const result = await getSingleQrSessionsService();
@@ -70,9 +94,22 @@ export const getSingleQrSessionsController = async (req: Request, res: Response)
     }
 };
 
+
+// ------------------- Get Round QR Sessions -------------------
 export const getRoundQrSessionsController = async (req: Request, res: Response) => {
     try {
         const result = await getRoundQrSessionsService();
+        return res.json(result);
+    } catch (error: any) {
+        return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+
+// ------------------- Get Wholesale QR Sessions (NEW) -------------------
+export const getWholesaleQrSessionsController = async (req: Request, res: Response) => {
+    try {
+        const result = await getWholesaleQrSessionsService();
         return res.json(result);
     } catch (error: any) {
         return res.status(500).json({ success: false, message: error.message });

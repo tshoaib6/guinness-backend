@@ -66,69 +66,128 @@ export const createRoundQrSessionService = async (businessId: string) => {
 
 // ---------------- Consumer: Redeem QR ----------------
 // ---------------- Consumer: Redeem QR ----------------
+// export const redeemQrSessionService = async (consumerId: string, qrValue: string) => {
+//     const session = await EarningSession.findOne({
+//         value: qrValue,
+//         type: { $in: ["qr_code_create_single", "qr_code_create_round"] }
+//     });
+
+//     if (!session) return { success: false, message: "Invalid QR code." };
+
+//     // Check expiry
+//     if (session.expiresAt && session.expiresAt < new Date()) {
+//         session.isActive = false; // deactivate only on expiry
+//         await session.save();
+//         return { success: false, message: "QR code expired and deactivated." };
+//     }
+
+//     // If manually inactive for any reason
+//     if (!session.isActive)
+//         return { success: false, message: "QR code is inactive." };
+
+//     const consumer = await User.findById(consumerId);
+//     if (!consumer) return { success: false, message: "Consumer not found." };
+
+//     // Add points to consumer
+//     consumer.points += session.points;
+//     await consumer.save();
+
+//     // Update rum shop stats
+//     // const owner = await User.findById(session.business);
+//     // if (owner && owner.businessInfo) {
+//     //     owner.businessInfo.stats = owner.businessInfo.stats || {};
+//     //     owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+//     //     await owner.save();
+//     // }
+
+
+//     const owner = await User.findById(session.business);
+//     if (owner && owner.businessInfo) {
+//         owner.businessInfo.stats = owner.businessInfo.stats || {};
+
+//         // Increment roundsSold only for "round" QR sessions
+//         if ((session.type as "qr_code_create_round") === "qr_code_create_round") {
+//             owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+//         }
+
+//         await owner.save();
+//     }
+
+//     // Record history
+//     await recordUserHistoryService({
+//         userId: consumerId,
+//         actionType: "qr_scan",
+//         points: session.points,
+//         relatedBusinessId: session.business.toString(),
+//         sessionId: session._id,
+//         details: { qrValue, redeemedBy: "consumer", category: session.meta?.category || "unknown" }
+//     });
+
+//     // ❌ Do NOT deactivate after scan
+//     // session.isActive remains true
+
+//     return { success: true, message: "Points added successfully.", points: consumer.points };
+// };
+
+
+
+
 export const redeemQrSessionService = async (consumerId: string, qrValue: string) => {
     const session = await EarningSession.findOne({
         value: qrValue,
-        type: { $in: ["qr_code_create_single", "qr_code_create_round"] }
+        type: {
+            $in: [
+                "qr_code_create_single",
+                "qr_code_create_round",
+                "qr_code_create_wholesale"
+            ]
+        }
     });
 
     if (!session) return { success: false, message: "Invalid QR code." };
 
-    // Check expiry
     if (session.expiresAt && session.expiresAt < new Date()) {
-        session.isActive = false; // deactivate only on expiry
+        session.isActive = false;
         await session.save();
         return { success: false, message: "QR code expired and deactivated." };
     }
 
-    // If manually inactive for any reason
     if (!session.isActive)
         return { success: false, message: "QR code is inactive." };
 
     const consumer = await User.findById(consumerId);
     if (!consumer) return { success: false, message: "Consumer not found." };
 
-    // Add points to consumer
     consumer.points += session.points;
     await consumer.save();
-
-    // Update rum shop stats
-    // const owner = await User.findById(session.business);
-    // if (owner && owner.businessInfo) {
-    //     owner.businessInfo.stats = owner.businessInfo.stats || {};
-    //     owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
-    //     await owner.save();
-    // }
-
 
     const owner = await User.findById(session.business);
     if (owner && owner.businessInfo) {
         owner.businessInfo.stats = owner.businessInfo.stats || {};
 
-        // Increment roundsSold only for "round" QR sessions
-        if ((session.type as "qr_code_create_round") === "qr_code_create_round") {
+        // Increment only for round QR
+        if (session.type === "qr_code_create_round") {
             owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
         }
 
         await owner.save();
     }
 
-    // Record history
     await recordUserHistoryService({
         userId: consumerId,
         actionType: "qr_scan",
         points: session.points,
         relatedBusinessId: session.business.toString(),
         sessionId: session._id,
-        details: { qrValue, redeemedBy: "consumer", category: session.meta?.category || "unknown" }
+        details: {
+            qrValue,
+            redeemedBy: "consumer",
+            category: session.meta?.category || "unknown"
+        }
     });
-
-    // ❌ Do NOT deactivate after scan
-    // session.isActive remains true
 
     return { success: true, message: "Points added successfully.", points: consumer.points };
 };
-
 
 
 // Get active single QR sessions
@@ -168,5 +227,55 @@ export const getRoundQrSessionsService = async () => {
     } catch (error) {
         console.error(error);
         return { success: false, message: "Failed to fetch round QR sessions" };
+    }
+};
+
+
+// ---------------- Owner: Create Wholesale QR ----------------
+export const createWholesaleQrSessionService = async (businessId: string) => {
+    const points = 50; // wholesale points (set whatever you want)
+    const qrValue = crypto.randomBytes(16).toString("hex");
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+
+    const session = new EarningSession({
+        business: new Types.ObjectId(businessId),
+        type: "qr_code_create_wholesale",
+        value: qrValue,
+        points,
+        expiresAt,
+        isActive: true,
+        meta: { category: "wholesale" }
+    });
+
+    await session.save();
+
+    await recordUserHistoryService({
+        userId: businessId,
+        actionType: "qr_code_create",
+        points,
+        sessionId: session._id,
+        details: { qrValue, createdBy: "owner", category: "wholesale" }
+    });
+
+    return { success: true, data: { qrValue, expiresAt, points, category: "wholesale" } };
+};
+
+
+export const getWholesaleQrSessionsService = async () => {
+    try {
+        const now = new Date();
+        const sessions = await EarningSession.find({
+            type: "qr_code_create_wholesale",
+            isActive: true,
+            $or: [
+                { expiresAt: { $gt: now } },
+                { expiresAt: null }
+            ]
+        }).sort({ createdAt: -1 });
+
+        return { success: true, data: sessions };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to fetch wholesale QR sessions" };
     }
 };
