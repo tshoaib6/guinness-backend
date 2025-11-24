@@ -130,8 +130,6 @@ export const createRoundQrSessionService = async (businessId: string) => {
 // };
 
 
-
-
 export const redeemQrSessionService = async (consumerId: string, qrValue: string) => {
     const session = await EarningSession.findOne({
         value: qrValue,
@@ -146,18 +144,21 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
 
     if (!session) return { success: false, message: "Invalid QR code." };
 
+    // Check expiry
     if (session.expiresAt && session.expiresAt < new Date()) {
         session.isActive = false;
         await session.save();
         return { success: false, message: "QR code expired and deactivated." };
     }
 
+    // If manually inactive
     if (!session.isActive)
         return { success: false, message: "QR code is inactive." };
 
     const consumer = await User.findById(consumerId);
     if (!consumer) return { success: false, message: "Consumer not found." };
 
+    // Add points to consumer
     consumer.points += session.points;
     await consumer.save();
 
@@ -165,14 +166,17 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
     if (owner && owner.businessInfo) {
         owner.businessInfo.stats = owner.businessInfo.stats || {};
 
-        // Increment only for round QR
+        // Increment stats based on QR type
         if (session.type === "qr_code_create_round") {
             owner.businessInfo.stats.roundsSold = (owner.businessInfo.stats.roundsSold || 0) + 1;
+        } else if (session.type === "qr_code_create_wholesale") {
+            owner.businessInfo.stats.casesSold = (owner.businessInfo.stats.casesSold || 0) + 1;
         }
 
         await owner.save();
     }
 
+    // Record user history
     await recordUserHistoryService({
         userId: consumerId,
         actionType: "qr_scan",
@@ -188,6 +192,7 @@ export const redeemQrSessionService = async (consumerId: string, qrValue: string
 
     return { success: true, message: "Points added successfully.", points: consumer.points };
 };
+
 
 
 // Get active single QR sessions
