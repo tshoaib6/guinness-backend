@@ -5,6 +5,7 @@ import {
     getUserHistoryByUserIdService,
     getUserHistoryByBusinessIdService,
     getBusinessQrHistoryService,
+    getBusinessQrStatsService,
 
 } from "../services/userHistory.service";
 import { PaginationOptions } from "../utils/pagination";
@@ -125,5 +126,17 @@ export const getBusinessQrHistoryController = async (req: Request, res: Response
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: "Failed to fetch business QR history" });
+    }
+};
+
+export const getBusinessQrStatsController = async (req: Request, res: Response) => {
+    try {
+        const { businessId } = req.params;
+        const result = await getBusinessQrStatsService(businessId);
+
+        return res.status(200).json(result);
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 };

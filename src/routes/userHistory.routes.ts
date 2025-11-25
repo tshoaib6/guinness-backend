@@ -6,6 +6,7 @@ import {
     getUserHistoryByUserIdController,
     getUserHistoryByBusinessIdController,
     getBusinessQrHistoryController,
+    getBusinessQrStatsController,
 } from "../controllers/userHistory.controller";
 import { authenticateAdmin, authenticateUser } from "../middlewares/auth";
 
@@ -24,6 +25,8 @@ router.get("/getUserHistoryByUserId/:userId", authenticateUser, getUserHistoryBy
 router.get("/getUserHistoryByBusinessId/:businessId", authenticateAdmin, getUserHistoryByBusinessIdController);
 
 router.get("/getBusinessQrHistory/:businessId", getBusinessQrHistoryController);
+
+router.get("/business-qr-stats/:businessId", getBusinessQrStatsController);
 
 
 export default router;

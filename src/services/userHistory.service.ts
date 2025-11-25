@@ -194,3 +194,94 @@ export const getBusinessQrHistoryService = async (
         return { success: false, message: "Failed to fetch business QR history." };
     }
 };
+
+
+export const getBusinessQrStatsService = async (businessId: string) => {
+    try {
+        const businessObjectId = new Types.ObjectId(businessId);
+
+        // ------------------ 1. Get all QR sessions of this business ------------------
+        const sessions = await EarningSession.find({ business: businessObjectId }, { _id: 1 });
+        const sessionIds = sessions.map(s => s._id);
+
+        if (sessionIds.length === 0) {
+            return {
+                success: true,
+                todayCount: 0,
+                weeklyCount: 0,
+                monthlyCount: 0,
+                dailyStats: []
+            };
+        }
+
+        // ------------------ 2. Fetch all scan records for these sessions ------------------
+        const scanRecords = await UserHistory.aggregate([
+            {
+                $match: {
+                    actionType: "qr_scan",
+                    session: { $in: sessionIds }
+                }
+            },
+            {
+                $project: {
+                    scannedAt: "$timestamp"
+                }
+            }
+        ]);
+
+        // ------------------ Prepare Date Ranges ------------------
+        const today = new Date();
+        const startOfDay = new Date(today.setHours(0, 0, 0, 0));
+
+        const last7Days = new Date();
+        last7Days.setDate(last7Days.getDate() - 7);
+
+        const last30Days = new Date();
+        last30Days.setDate(last30Days.getDate() - 30);
+
+        // ------------------ Calculate Stats ------------------
+
+        const todayCount = scanRecords.filter(
+            (s) => new Date(s.scannedAt) >= startOfDay
+        ).length;
+
+        const weeklyCount = scanRecords.filter(
+            (s) => new Date(s.scannedAt) >= last7Days
+        ).length;
+
+        const monthlyCount = scanRecords.filter(
+            (s) => new Date(s.scannedAt) >= last30Days
+        ).length;
+
+        // Past 7 days daily counts
+        const dailyStats = Array.from({ length: 7 }).map((_, i) => {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+
+            const dayStart = new Date(date.setHours(0, 0, 0, 0));
+            const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+
+            const count = scanRecords.filter((s) => {
+                const scanDate = new Date(s.scannedAt);
+                return scanDate >= dayStart && scanDate <= dayEnd;
+            }).length;
+
+            return {
+                date: dayStart.toISOString().split("T")[0],
+                count,
+            };
+        }).reverse();
+
+        return {
+            success: true,
+            todayCount,
+            weeklyCount,
+            monthlyCount,
+            dailyStats,
+        };
+
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to fetch QR stats" };
+    }
+};
