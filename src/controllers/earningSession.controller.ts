@@ -126,7 +126,7 @@ export const createBarQrSessionController = async (req: Request, res: Response) 
         }
 
         // Call service with fixed 5 points
-        const result = await createBarQrSessionService(businessId, 5);
+        const result = await createBarQrSessionService(businessId, 15);
 
         if (!result.success) {
             return res.status(400).json(result);
