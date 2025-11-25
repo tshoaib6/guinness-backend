@@ -112,6 +112,92 @@ export const getUserHistoryByBusinessIdService = async (
         throw new Error("Failed to fetch business history");
     }
 };
+// export const getBusinessQrHistoryService = async (
+//     businessId: string,
+//     options: PaginationOptions = {}
+// ) => {
+//     try {
+//         const businessObjectId = new Types.ObjectId(businessId);
+
+//         // Run aggregation to get flattened history
+//         const aggregation = EarningSession.aggregate([
+//             { $match: { business: businessObjectId } },
+
+//             {
+//                 $lookup: {
+//                     from: "users",
+//                     localField: "business",
+//                     foreignField: "_id",
+//                     as: "business",
+//                 },
+//             },
+//             { $unwind: "$business" },
+
+//             {
+//                 $lookup: {
+//                     from: "userhistories",
+//                     let: { sessionId: "$_id" },
+//                     pipeline: [
+//                         { $match: { $expr: { $eq: ["$session", "$$sessionId"] }, actionType: "qr_scan" } },
+//                         { $lookup: { from: "users", localField: "user", foreignField: "_id", as: "consumer" } },
+//                         { $unwind: "$consumer" },
+//                         {
+//                             $project: {
+//                                 _id: 0,
+//                                 firstName: "$consumer.firstName",
+//                                 lastName: "$consumer.lastName",
+//                                 role: "$consumer.role",
+//                                 qrValue: "$session",
+//                                 scannedAt: "$timestamp",
+//                                 type: "scan",
+//                                 points: "$points",
+//                             },
+//                         },
+//                     ],
+//                     as: "scans",
+//                 },
+//             },
+
+//             {
+//                 $project: {
+//                     _id: 0,
+//                     businessRecord: {
+//                         firstName: "$business.firstName",
+//                         lastName: "$business.lastName",
+//                         businessName: "$business.businessInfo.businessName",
+//                         businessType: "$business.businessInfo.businessType",
+//                         qrValue: "$value",
+//                         type: "creation",
+//                         points: "$points",
+//                     },
+//                     scans: 1,
+//                 },
+//             },
+
+//             { $project: { records: { $concatArrays: [["$businessRecord"], "$scans"] } } },
+//             { $unwind: "$records" },
+//             { $replaceRoot: { newRoot: "$records" } },
+//             { $sort: { qrValue: 1, scannedAt: 1 } },
+//         ]);
+
+//         // Use your paginate utility
+//         const allRecords = await aggregation.exec(); // get the full flattened array
+//         const total = allRecords.length;
+//         const page = options.page && options.page > 0 ? options.page : 1;
+//         const limit = options.limit && options.limit > 0 ? options.limit : 20;
+//         const totalPages = Math.ceil(total / limit);
+//         const data = allRecords.slice((page - 1) * limit, page * limit);
+
+//         return { success: true, data, total, page, limit, totalPages };
+//     } catch (error) {
+//         console.error(error);
+//         return { success: false, message: "Failed to fetch business QR history." };
+//     }
+// };
+
+
+
+// excluded create history 
 export const getBusinessQrHistoryService = async (
     businessId: string,
     options: PaginationOptions = {}
@@ -119,27 +205,29 @@ export const getBusinessQrHistoryService = async (
     try {
         const businessObjectId = new Types.ObjectId(businessId);
 
-        // Run aggregation to get flattened history
         const aggregation = EarningSession.aggregate([
             { $match: { business: businessObjectId } },
 
-            {
-                $lookup: {
-                    from: "users",
-                    localField: "business",
-                    foreignField: "_id",
-                    as: "business",
-                },
-            },
-            { $unwind: "$business" },
-
+            // Lookup scans for each QR session
             {
                 $lookup: {
                     from: "userhistories",
                     let: { sessionId: "$_id" },
                     pipeline: [
-                        { $match: { $expr: { $eq: ["$session", "$$sessionId"] }, actionType: "qr_scan" } },
-                        { $lookup: { from: "users", localField: "user", foreignField: "_id", as: "consumer" } },
+                        {
+                            $match: {
+                                $expr: { $eq: ["$session", "$$sessionId"] },
+                                actionType: "qr_scan"
+                            }
+                        },
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField: "user",
+                                foreignField: "_id",
+                                as: "consumer"
+                            }
+                        },
                         { $unwind: "$consumer" },
                         {
                             $project: {
@@ -150,48 +238,38 @@ export const getBusinessQrHistoryService = async (
                                 qrValue: "$session",
                                 scannedAt: "$timestamp",
                                 type: "scan",
-                                points: "$points",
-                            },
-                        },
+                                points: "$points"
+                            }
+                        }
                     ],
-                    as: "scans",
-                },
+                    as: "scans"
+                }
             },
 
-            {
-                $project: {
-                    _id: 0,
-                    businessRecord: {
-                        firstName: "$business.firstName",
-                        lastName: "$business.lastName",
-                        businessName: "$business.businessInfo.businessName",
-                        businessType: "$business.businessInfo.businessType",
-                        qrValue: "$value",
-                        type: "creation",
-                        points: "$points",
-                    },
-                    scans: 1,
-                },
-            },
+            // Unwind only scans (ignore creation record)
+            { $unwind: "$scans" },
 
-            { $project: { records: { $concatArrays: [["$businessRecord"], "$scans"] } } },
-            { $unwind: "$records" },
-            { $replaceRoot: { newRoot: "$records" } },
-            { $sort: { qrValue: 1, scannedAt: 1 } },
+            // Use the scan as the root document
+            { $replaceRoot: { newRoot: "$scans" } },
+
+            // Sort by scan time
+            { $sort: { scannedAt: -1 } }
         ]);
 
-        // Use your paginate utility
-        const allRecords = await aggregation.exec(); // get the full flattened array
+        // Manually paginate results
+        const allRecords = await aggregation.exec();
         const total = allRecords.length;
+
         const page = options.page && options.page > 0 ? options.page : 1;
         const limit = options.limit && options.limit > 0 ? options.limit : 20;
         const totalPages = Math.ceil(total / limit);
+
         const data = allRecords.slice((page - 1) * limit, page * limit);
 
         return { success: true, data, total, page, limit, totalPages };
     } catch (error) {
         console.error(error);
-        return { success: false, message: "Failed to fetch business QR history." };
+        return { success: false, message: "Failed to fetch business QR scan history." };
     }
 };
 
