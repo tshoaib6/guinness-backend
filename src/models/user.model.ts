@@ -32,6 +32,9 @@ export interface IUser extends Document {
       roundsSold?: number;       // Rum Shop, Bar
       casesSold?: number;        // Wholesaler
       receiptsUploaded?: number; // Receipt-based businesses
+      bottlesSold?: number; // Receipt-based businesses
+
+
     };
   };
 
@@ -95,6 +98,8 @@ const userSchema = new Schema<IUser>(
         roundsSold: { type: Number, default: 0 },
         casesSold: { type: Number, default: 0 },
         receiptsUploaded: { type: Number, default: 0 },
+        bottlesSold: { type: Number, default: 0 }, // Bar
+
       }
     },
 

@@ -7,7 +7,8 @@ import {
     redeemQrSessionService,
     getSingleQrSessionsService,
     getRoundQrSessionsService,
-    getWholesaleQrSessionsService       // ✅ NEW
+    getWholesaleQrSessionsService,       // ✅ NEW
+    createBarQrSessionService
 } from "../services/earningSession.service";
 
 
@@ -113,5 +114,28 @@ export const getWholesaleQrSessionsController = async (req: Request, res: Respon
         return res.json(result);
     } catch (error: any) {
         return res.status(500).json({ success: false, message: error.message });
+    }
+};
+
+export const createBarQrSessionController = async (req: Request, res: Response) => {
+    try {
+        const { businessId } = req.body;
+
+        if (!businessId) {
+            return res.status(400).json({ success: false, message: "businessId is required" });
+        }
+
+        // Call service with fixed 5 points
+        const result = await createBarQrSessionService(businessId, 5);
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        return res.status(200).json(result);
+
+    } catch (error) {
+        console.error("Error creating Bar QR session:", error);
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 };
