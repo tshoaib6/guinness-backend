@@ -7,7 +7,8 @@ import {
     getSingleQrSessionsController,
     getRoundQrSessionsController,
     createWholesaleQrSessionController,      // NEW
-    getWholesaleQrSessionsController         // NEW
+    getWholesaleQrSessionsController,         // NEW
+    createBarQrSessionController
 } from "../controllers/earningSession.controller"; // updated controller import
 import { authenticateUser } from "../middlewares/auth";
 
@@ -32,6 +33,8 @@ router.get("/get-all-single-qr", getSingleQrSessionsController);
 router.get("/get-all-round-qr", getRoundQrSessionsController);
 
 // Get all active Wholesale QR sessions
-router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController); // NEW   
+router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController); // NEW
+
+router.post("/create-qr-bar", createBarQrSessionController); // NEW
 
 export default router;
