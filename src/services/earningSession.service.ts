@@ -272,29 +272,24 @@ export const uploadReceiptSessionService = async (
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
-        // Points logic
-        let points = receiptData.type === "single" ? 10 : 50;
+        const points = receiptData.type === "single" ? 10 : 50;
 
-        // Create earning session
         const session = new EarningSession({
             business: new Types.ObjectId(businessId),
             type: "receipt_upload",
-            value: crypto.randomBytes(10).toString("hex"),
+            value: crypto.randomBytes(10).toString("hex"), // invoice/receipt id
             points,
             isActive: true,
             meta: {
-                receiptData,
                 category: receiptData.type
             }
         });
 
         await session.save();
 
-        // Add points to consumer
         consumer.points += points;
         await consumer.save();
 
-        // Example stats update logic for supermarket (optional)
         if (business.name === "Supermarket") {
             if (!(business as any).stats) (business as any).stats = {};
             const stats = (business as any).stats;
@@ -310,21 +305,14 @@ export const uploadReceiptSessionService = async (
 
         await business.save();
 
-        // -------------------------------
-        // ⭐ PROPER USER HISTORY ENTRY ⭐
-        // -------------------------------
+        // ⭐ EXACTLY LIKE QR SCAN ⭐
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
-            relatedBusinessId: businessId,        // 🟢 Add related business
-            sessionId: session._id,               // 🟢 Add session ID
-            details: {
-                receiptData,
-                uploadedBy: "consumer",
-                category: receiptData.type,       // 🟢 Same as other services
-                businessName: business.name       // optional useful info
-            }
+            relatedBusinessId: businessId,        // same as QR scan
+            sessionId: session._id,
+            details: session.value                // ONLY invoice id
         });
 
         return {
