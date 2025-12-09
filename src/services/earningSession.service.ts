@@ -253,7 +253,6 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
     return { success: true, data: { qrValue, expiresAt, points, category: "bar" } };
 };
 
-
 export const uploadReceiptSessionService = async (
     consumerId: string,
     businessId: string,
@@ -273,10 +272,10 @@ export const uploadReceiptSessionService = async (
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
-        let points = 0;
-        if (receiptData.type === "single") points = 10;
-        else if (receiptData.type === "case") points = 50;
+        // Points logic
+        let points = receiptData.type === "single" ? 10 : 50;
 
+        // Create earning session
         const session = new EarningSession({
             business: new Types.ObjectId(businessId),
             type: "receipt_upload",
@@ -291,39 +290,40 @@ export const uploadReceiptSessionService = async (
 
         await session.save();
 
+        // Add points to consumer
         consumer.points += points;
         await consumer.save();
 
-        business.earnPoints = business.earnPoints || { type: "per_single", value: 0 }; // fallback
-        business.method = business.method || "upload_receipt"; // fallback
-
+        // Example stats update logic for supermarket (optional)
         if (business.name === "Supermarket") {
-            business.earnPoints.value = business.earnPoints.value || 0;
-            // Update stats inside business if you want
-            // For example, you can add receiptsUploaded, bottlesSold, casesSold
-            // Since the schema doesn’t have a nested stats object, you may want to create one
-            // Here’s a simple example:
-            if (!("stats" in business)) (business as any).stats = {};
+            if (!(business as any).stats) (business as any).stats = {};
             const stats = (business as any).stats;
+
             stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
+
             if (receiptData.bottleCount)
                 stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
+
             if (receiptData.caseCount)
                 stats.casesSold = (stats.casesSold || 0) + receiptData.caseCount;
         }
 
         await business.save();
 
+        // -------------------------------
+        // ⭐ PROPER USER HISTORY ENTRY ⭐
+        // -------------------------------
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
-            relatedBusinessId: businessId,
-            sessionId: session._id,
+            relatedBusinessId: businessId,        // 🟢 Add related business
+            sessionId: session._id,               // 🟢 Add session ID
             details: {
                 receiptData,
                 uploadedBy: "consumer",
-                category: receiptData.type
+                category: receiptData.type,       // 🟢 Same as other services
+                businessName: business.name       // optional useful info
             }
         });
 
@@ -333,6 +333,7 @@ export const uploadReceiptSessionService = async (
             points: consumer.points,
             sessionId: session._id
         };
+
     } catch (error) {
         console.error(error);
         return { success: false, message: "Receipt processing failed." };
