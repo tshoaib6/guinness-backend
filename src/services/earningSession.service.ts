@@ -310,9 +310,9 @@ export const uploadReceiptSessionService = async (
             userId: consumerId,
             actionType: "receipt_upload",
             points,
-            relatedBusinessId: businessId,        // same as QR scan
+            relatedBusinessId: businessId,  // Use this to satisfy TypeScript
             sessionId: session._id,
-            details: session.value                // ONLY invoice id
+            details: session.value         // only receipt/invoice ID
         });
 
         return {
