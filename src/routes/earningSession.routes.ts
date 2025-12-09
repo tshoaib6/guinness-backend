@@ -6,10 +6,11 @@ import {
     redeemQrSessionController,
     getSingleQrSessionsController,
     getRoundQrSessionsController,
-    createWholesaleQrSessionController,      // NEW
-    getWholesaleQrSessionsController,         // NEW
-    createBarQrSessionController
-} from "../controllers/earningSession.controller"; // updated controller import
+    createWholesaleQrSessionController,
+    getWholesaleQrSessionsController,
+    createBarQrSessionController,
+    uploadReceiptSessionController
+} from "../controllers/earningSession.controller";
 import { authenticateUser } from "../middlewares/auth";
 
 const router = Router();
@@ -21,7 +22,7 @@ router.post("/create-qr-single", createSingleQrSessionController);
 router.post("/create-qr-round", createRoundQrSessionController);
 
 // Owner creates a new Wholesale QR code (50 points)
-router.post("/create-qr-wholesale", createWholesaleQrSessionController); // NEW
+router.post("/create-qr-wholesale", createWholesaleQrSessionController);
 
 // Consumer redeems a QR code
 router.post("/redeem-qr-code", authenticateUser, redeemQrSessionController);
@@ -33,8 +34,11 @@ router.get("/get-all-single-qr", getSingleQrSessionsController);
 router.get("/get-all-round-qr", getRoundQrSessionsController);
 
 // Get all active Wholesale QR sessions
-router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController); // NEW
+router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController);
 
-router.post("/create-qr-bar", createBarQrSessionController); // NEW
+router.post("/create-qr-bar", createBarQrSessionController);
+
+router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
+
 
 export default router;

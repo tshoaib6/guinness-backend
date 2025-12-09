@@ -11,10 +11,9 @@ export interface IUser extends Document {
   location?: string;
   role: "consumer" | "business" | "admin";
 
-  // Business-specific fields
   businessInfo?: {
     businessName: string;
-    businessType: "Rum Shop" | "Bar" | "Wholesaler";
+    businessType: "Rum Shop" | "Bar" | "Wholesaler" | "Supermarket";
     registrationNumber?: string;
     ownerName?: string;
     phone?: string;
@@ -24,17 +23,13 @@ export interface IUser extends Document {
     bankAccount?: string;
     approvedByAdmin: boolean;
 
-    // NEW: how the business gives points
     method?: "scan_qr" | "upload_receipt";
 
-    // NEW: business stats for QR scans + receipt uploads
     stats?: {
-      roundsSold?: number;       // Rum Shop, Bar
-      casesSold?: number;        // Wholesaler
-      receiptsUploaded?: number; // Receipt-based businesses
-      bottlesSold?: number; // Receipt-based businesses
-
-
+      roundsSold?: number;
+      casesSold?: number;
+      receiptsUploaded?: number;
+      bottlesSold?: number;
     };
   };
 
@@ -75,7 +70,7 @@ const userSchema = new Schema<IUser>(
       businessName: { type: String },
       businessType: {
         type: String,
-        enum: ["Rum Shop", "Bar", "Wholesaler"],
+        enum: ["Rum Shop", "Bar", "Wholesaler", "Supermarket"],
       },
       registrationNumber: { type: String },
       ownerName: { type: String },
@@ -86,21 +81,18 @@ const userSchema = new Schema<IUser>(
       bankAccount: { type: String },
       approvedByAdmin: { type: Boolean, default: false },
 
-      // NEW: business method
       method: {
         type: String,
         enum: ["scan_qr", "upload_receipt"],
         default: "scan_qr",
       },
 
-      // NEW: stats based on QR scanning & receipt uploads
       stats: {
         roundsSold: { type: Number, default: 0 },
         casesSold: { type: Number, default: 0 },
         receiptsUploaded: { type: Number, default: 0 },
-        bottlesSold: { type: Number, default: 0 }, // Bar
-
-      }
+        bottlesSold: { type: Number, default: 0 },
+      },
     },
 
     points: { type: Number, default: 0 },
@@ -114,12 +106,16 @@ const userSchema = new Schema<IUser>(
     passwordResetOtpExpires: { type: Date, default: null },
     passwordResetVerified: { type: Boolean, default: false },
 
-    status: { type: String, enum: ["active", "blocked", "pending"], default: "active", required: true },
+    status: {
+      type: String,
+      enum: ["active", "blocked", "pending"],
+      default: "active",
+      required: true,
+    },
   },
   { timestamps: true }
 );
 
-// Auto-calc age
 userSchema.pre("save", function (next) {
   if (this.dob) {
     const today = new Date();
@@ -134,7 +130,13 @@ userSchema.pre("save", function (next) {
   next();
 });
 
-// Indexes
+userSchema.pre("save", function (next) {
+  if (this.businessInfo?.businessType === "Supermarket") {
+    this.businessInfo.method = "upload_receipt";
+  }
+  next();
+});
+
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ role: 1, "businessInfo.approvedByAdmin": 1 });

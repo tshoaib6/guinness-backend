@@ -253,3 +253,93 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 };
 
 
+
+export const uploadReceiptSessionService = async (
+    consumerId: string,
+    businessId: string,
+    receiptData: {
+        items: { name: string; quantity: number }[];
+        totalAmount: number;
+        bottleCount?: number;
+        caseCount?: number;
+        type: "single" | "case";
+    }
+) => {
+    try {
+        const consumer = await User.findById(consumerId);
+        if (!consumer) return { success: false, message: "Consumer not found." };
+
+        const business = await User.findById(businessId);
+        if (!business || business.role !== "business")
+            return { success: false, message: "Business not found." };
+
+        if (!business.businessInfo)
+            return { success: false, message: "Business info not set for this user." };
+
+        const businessInfo = business.businessInfo; // safe reference now
+        const businessType = businessInfo.businessType;
+        if (!businessType) return { success: false, message: "Invalid business type." };
+
+        let points = 0;
+        if (receiptData.type === "single") points = 10;
+        else if (receiptData.type === "case") points = 50;
+
+        const session = new EarningSession({
+            business: new Types.ObjectId(businessId),
+            type: "receipt_upload",
+            value: crypto.randomBytes(10).toString("hex"),
+            points,
+            isActive: true,
+            meta: {
+                receiptData,
+                category: receiptData.type
+            }
+        });
+
+        await session.save();
+
+        consumer.points += points;
+        await consumer.save();
+
+        businessInfo.stats = businessInfo.stats || {};
+
+        if (businessType === "Supermarket") {
+            businessInfo.stats.receiptsUploaded =
+                (businessInfo.stats.receiptsUploaded || 0) + 1;
+
+            if (receiptData.bottleCount)
+                businessInfo.stats.bottlesSold =
+                    (businessInfo.stats.bottlesSold || 0) + receiptData.bottleCount;
+
+            if (receiptData.caseCount)
+                businessInfo.stats.casesSold =
+                    (businessInfo.stats.casesSold || 0) + receiptData.caseCount;
+        }
+
+        await business.save();
+
+        await recordUserHistoryService({
+            userId: consumerId,
+            actionType: "receipt_upload",
+            points,
+            relatedBusinessId: businessId,
+            sessionId: session._id,
+            details: {
+                receiptData,
+                uploadedBy: "consumer",
+                category: receiptData.type
+            }
+        });
+
+        return {
+            success: true,
+            message: "Receipt processed and points added.",
+            points: consumer.points,
+            sessionId: session._id
+        };
+
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Receipt processing failed." };
+    }
+};

@@ -1,6 +1,5 @@
 import { Schema, model, Document, Types } from "mongoose";
 
-// ✅ Define all possible earning session types as a union type
 export type EarningSessionType =
     | "qr_scan"
     | "receipt_upload"
@@ -10,13 +9,13 @@ export type EarningSessionType =
     | "qr_code_create_wholesale";
 
 export interface IEarningSession extends Document {
-    business: Types.ObjectId;      // The business initiating this session
-    type: EarningSessionType;      // Type of earning action
-    value?: string;                // QR code value or any identifier
-    points: number;                // Points consumer will earn
-    expiresAt?: Date;              // Optional expiration for QR codes
-    isActive: boolean;             // Active session or expired
-    meta?: any;                    // Flexible field for future use
+    business: Types.ObjectId;
+    type: EarningSessionType;
+    value?: string;
+    points: number;
+    expiresAt?: Date;
+    isActive: boolean;
+    meta?: any;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -36,16 +35,15 @@ const earningSessionSchema = new Schema<IEarningSession>(
             ],
             required: true,
         },
-        value: { type: String },           // QR code value or receipt ID
+        value: { type: String },
         points: { type: Number, required: true, min: 1 },
-        expiresAt: { type: Date },         // Only needed for QR
+        expiresAt: { type: Date },
         isActive: { type: Boolean, default: true },
-        meta: { type: Schema.Types.Mixed }, // For any future additional data
+        meta: { type: Schema.Types.Mixed },
     },
     { timestamps: true }
 );
 
-// ✅ Indexes for fast lookup
 earningSessionSchema.index({ value: 1 });
 earningSessionSchema.index({ business: 1, isActive: 1 });
 earningSessionSchema.index({ expiresAt: 1 });

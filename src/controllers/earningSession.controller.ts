@@ -8,7 +8,8 @@ import {
     getSingleQrSessionsService,
     getRoundQrSessionsService,
     getWholesaleQrSessionsService,       // ✅ NEW
-    createBarQrSessionService
+    createBarQrSessionService,
+    uploadReceiptSessionService
 } from "../services/earningSession.service";
 
 
@@ -136,6 +137,32 @@ export const createBarQrSessionController = async (req: Request, res: Response) 
 
     } catch (error) {
         console.error("Error creating Bar QR session:", error);
+        return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+export const uploadReceiptSessionController = async (req: Request, res: Response) => {
+    try {
+        const { consumerId, businessId, receiptData } = req.body;
+
+        if (!consumerId || !businessId || !receiptData) {
+            return res.status(400).json({
+                success: false,
+                message: "consumerId, businessId and receiptData are required"
+            });
+        }
+
+        // Call service
+        const result = await uploadReceiptSessionService(consumerId, businessId, receiptData);
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        return res.status(200).json(result);
+
+    } catch (error) {
+        console.error("Error uploading receipt session:", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
