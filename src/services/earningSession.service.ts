@@ -3,6 +3,7 @@ import { User } from "../models/user.model";
 import { Types } from "mongoose";
 import crypto from "crypto";
 import { recordUserHistoryService } from "./userHistory.service";
+import { Business } from "../models/business.model";
 
 // ---------------- Owner: Create Single Guinness QR ----------------
 export const createSingleQrSessionService = async (businessId: string) => {
@@ -253,7 +254,6 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 };
 
 
-
 export const uploadReceiptSessionService = async (
     consumerId: string,
     businessId: string,
@@ -269,16 +269,9 @@ export const uploadReceiptSessionService = async (
         const consumer = await User.findById(consumerId);
         if (!consumer) return { success: false, message: "Consumer not found." };
 
-        const business = await User.findById(businessId);
-        if (!business || business.role !== "business")
-            return { success: false, message: "Business not found." };
-
-        if (!business.businessInfo)
-            return { success: false, message: "Business info not set for this user." };
-
-        const businessInfo = business.businessInfo; // safe reference now
-        const businessType = businessInfo.businessType;
-        if (!businessType) return { success: false, message: "Invalid business type." };
+        const business = await Business.findById(businessId);
+        if (!business || !business.isActive)
+            return { success: false, message: "Business not found or inactive." };
 
         let points = 0;
         if (receiptData.type === "single") points = 10;
@@ -301,19 +294,22 @@ export const uploadReceiptSessionService = async (
         consumer.points += points;
         await consumer.save();
 
-        businessInfo.stats = businessInfo.stats || {};
+        business.earnPoints = business.earnPoints || { type: "per_single", value: 0 }; // fallback
+        business.method = business.method || "upload_receipt"; // fallback
 
-        if (businessType === "Supermarket") {
-            businessInfo.stats.receiptsUploaded =
-                (businessInfo.stats.receiptsUploaded || 0) + 1;
-
+        if (business.name === "Supermarket") {
+            business.earnPoints.value = business.earnPoints.value || 0;
+            // Update stats inside business if you want
+            // For example, you can add receiptsUploaded, bottlesSold, casesSold
+            // Since the schema doesn’t have a nested stats object, you may want to create one
+            // Here’s a simple example:
+            if (!("stats" in business)) (business as any).stats = {};
+            const stats = (business as any).stats;
+            stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
             if (receiptData.bottleCount)
-                businessInfo.stats.bottlesSold =
-                    (businessInfo.stats.bottlesSold || 0) + receiptData.bottleCount;
-
+                stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
             if (receiptData.caseCount)
-                businessInfo.stats.casesSold =
-                    (businessInfo.stats.casesSold || 0) + receiptData.caseCount;
+                stats.casesSold = (stats.casesSold || 0) + receiptData.caseCount;
         }
 
         await business.save();
@@ -337,7 +333,6 @@ export const uploadReceiptSessionService = async (
             points: consumer.points,
             sessionId: session._id
         };
-
     } catch (error) {
         console.error(error);
         return { success: false, message: "Receipt processing failed." };
