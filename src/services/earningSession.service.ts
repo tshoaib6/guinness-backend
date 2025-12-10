@@ -252,7 +252,6 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 
     return { success: true, data: { qrValue, expiresAt, points, category: "bar" } };
 };
-
 export const uploadReceiptSessionService = async (
     consumerId: string,
     businessId: string,
@@ -268,16 +267,17 @@ export const uploadReceiptSessionService = async (
         const consumer = await User.findById(consumerId);
         if (!consumer) return { success: false, message: "Consumer not found." };
 
-        const business = await Business.findById(businessId);
-        if (!business || !business.isActive)
-            return { success: false, message: "Business not found or inactive." };
+        // ⭐ Business is actually a User with role: business
+        const businessUser = await User.findById(businessId);
+        if (!businessUser || businessUser.role !== "business")
+            return { success: false, message: "Business user not found or inactive." };
 
         const points = receiptData.type === "single" ? 10 : 50;
 
         const session = new EarningSession({
-            business: new Types.ObjectId(businessId),
+            business: businessUser._id,  // store USER ID
             type: "receipt_upload",
-            value: crypto.randomBytes(10).toString("hex"), // invoice/receipt id
+            value: crypto.randomBytes(10).toString("hex"),
             points,
             isActive: true,
             meta: {
@@ -290,29 +290,30 @@ export const uploadReceiptSessionService = async (
         consumer.points += points;
         await consumer.save();
 
-        if (business.name === "Supermarket") {
-            if (!(business as any).stats) (business as any).stats = {};
-            const stats = (business as any).stats;
+        // update business stats
+        if (businessUser.businessInfo?.businessType === "Supermarket") {
+            const stats = businessUser.businessInfo.stats || {};
 
             stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
-
             if (receiptData.bottleCount)
                 stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
 
             if (receiptData.caseCount)
                 stats.casesSold = (stats.casesSold || 0) + receiptData.caseCount;
+
+            businessUser.businessInfo.stats = stats;
         }
 
-        await business.save();
+        await businessUser.save();
 
-        // ⭐ EXACTLY LIKE QR SCAN ⭐
+        // ⭐ RECORD HISTORY – SAME AS QR ⭐
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
-            relatedBusinessId: businessId,  // Use this to satisfy TypeScript
+            relatedBusinessId: businessUser._id.toString(), // correct ID (user)
             sessionId: session._id,
-            details: session.value         // only receipt/invoice ID
+            details: session.value
         });
 
         return {
