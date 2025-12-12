@@ -1,15 +1,15 @@
 // routes/qrRoutes.ts
 import { Router } from "express";
 import {
-    createSingleQrSessionController,
-    createRoundQrSessionController,
-    redeemQrSessionController,
-    getSingleQrSessionsController,
-    getRoundQrSessionsController,
-    createWholesaleQrSessionController,
-    getWholesaleQrSessionsController,
-    createBarQrSessionController,
-    uploadReceiptSessionController
+  createSingleQrSessionController,
+  createRoundQrSessionController,
+  redeemQrSessionController,
+  getSingleQrSessionsController,
+  getRoundQrSessionsController,
+  createWholesaleQrSessionController,
+  getWholesaleQrSessionsController,
+  createBarQrSessionController,
+  uploadReceiptSessionController,
 } from "../controllers/earningSession.controller";
 import { authenticateUser } from "../middlewares/auth";
 
@@ -38,7 +38,7 @@ router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController);
 
 router.post("/create-qr-bar", createBarQrSessionController);
 
-router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
-
+// router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
+router.post("/upload-receipt", authenticateUser, ...uploadReceiptSessionController);
 
 export default router;
