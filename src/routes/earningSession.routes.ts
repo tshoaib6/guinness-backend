@@ -44,6 +44,6 @@ router.post("/create-qr-bar", createBarQrSessionController);
 router.post("/upload-receipt", authenticateUser, upload.single("image"), uploadReceiptSessionController);
 
 // router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
-router.post("/upload-receipt", authenticateUser, ...uploadReceiptSessionController);
+// router.post("/upload-receipt", authenticateUser,);
 
 export default router;

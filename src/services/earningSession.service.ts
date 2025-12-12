@@ -317,8 +317,6 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 //     }
 // };
 
-
-
 export const uploadReceiptSessionService = async (
     consumerId: string,
     businessId: string,
@@ -326,7 +324,7 @@ export const uploadReceiptSessionService = async (
         items: { name: string; quantity: number }[];
         totalAmount: number;
         bottleCount?: number;
-        caseCount?: number;
+        caseCount?: number; // can be fractional e.g., 0.25, 0.5, 0.75, 1
         type: "single" | "case";
         image?: Buffer | string; // ⭐ optional image buffer or file path
     }
@@ -339,12 +337,25 @@ export const uploadReceiptSessionService = async (
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
-        const points = receiptData.type === "single" ? 10 : 50;
+        // ⭐ Calculate points
+        let points = 0;
+
+        if (receiptData.type === "single") {
+            points = 10;
+        } else if (receiptData.type === "case" && receiptData.caseCount) {
+            const count = receiptData.caseCount;
+            if (count === 0.25) points = 10;
+            else if (count === 0.5) points = 25;
+            else if (count === 0.75) points = 35;
+            else if (count === 1) points = 50;
+            else points = Math.round(count * 50); // fallback for other fractions
+        }
 
         const metaData: any = {
             category: receiptData.type,
-            extractedData: receiptData.items, // save items JSON
-            totalAmount: receiptData.totalAmount
+            extractedData: receiptData.items,
+            totalAmount: receiptData.totalAmount,
+            caseCount: receiptData.caseCount
         };
 
         // ⭐ Upload image to Cloudinary if provided

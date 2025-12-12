@@ -1,6 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import streamifier from 'streamifier';
-import fs from 'fs'; 
+import fs from 'fs';
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -17,7 +17,7 @@ export const uploadToCloudinary = async (fileInput: Buffer | string, folder: str
         { folder },
         (error, result) => {
           if (error) {
-            reject(error); 
+            reject(error);
           } else {
             if (result) {
               resolve(result.secure_url || '');
