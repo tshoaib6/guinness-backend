@@ -239,6 +239,7 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 
   return { success: true, data: { qrValue, expiresAt, points, category: "bar" } };
 };
+
 export const uploadReceiptSessionService = async (
   consumerId: string,
   businessId: string,
