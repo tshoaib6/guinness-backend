@@ -1,19 +1,22 @@
 // routes/qrRoutes.ts
 import { Router } from "express";
 import {
-  createSingleQrSessionController,
-  createRoundQrSessionController,
-  redeemQrSessionController,
-  getSingleQrSessionsController,
-  getRoundQrSessionsController,
-  createWholesaleQrSessionController,
-  getWholesaleQrSessionsController,
-  createBarQrSessionController,
-  uploadReceiptSessionController,
+    createSingleQrSessionController,
+    createRoundQrSessionController,
+    redeemQrSessionController,
+    getSingleQrSessionsController,
+    getRoundQrSessionsController,
+    createWholesaleQrSessionController,
+    getWholesaleQrSessionsController,
+    createBarQrSessionController,
+    uploadReceiptSessionController,
+
 } from "../controllers/earningSession.controller";
 import { authenticateUser } from "../middlewares/auth";
+import multer from "multer";
 
 const router = Router();
+const upload = multer(); // in-memory storage (good for Cloudinary)
 
 // Owner creates a new Single QR code (5 points)
 router.post("/create-qr-single", createSingleQrSessionController);
@@ -37,6 +40,8 @@ router.get("/get-all-round-qr", getRoundQrSessionsController);
 router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController);
 
 router.post("/create-qr-bar", createBarQrSessionController);
+
+router.post("/upload-receipt", authenticateUser, upload.single("image"), uploadReceiptSessionController);
 
 // router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
 router.post("/upload-receipt", authenticateUser, ...uploadReceiptSessionController);

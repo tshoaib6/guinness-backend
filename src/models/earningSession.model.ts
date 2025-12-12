@@ -15,6 +15,7 @@ export interface IEarningSession extends Document {
     points: number;
     expiresAt?: Date;
     isActive: boolean;
+    status?: "pending" | "approved" | "rejected";   // ⭐ added
     meta?: any;
     createdAt: Date;
     updatedAt: Date;
@@ -23,6 +24,7 @@ export interface IEarningSession extends Document {
 const earningSessionSchema = new Schema<IEarningSession>(
     {
         business: { type: Schema.Types.ObjectId, ref: "User", required: true },
+
         type: {
             type: String,
             enum: [
@@ -35,10 +37,22 @@ const earningSessionSchema = new Schema<IEarningSession>(
             ],
             required: true,
         },
+
         value: { type: String },
+
         points: { type: Number, required: true, min: 1 },
+
         expiresAt: { type: Date },
+
         isActive: { type: Boolean, default: true },
+
+        // ⭐ Added Status (default approved)
+        status: {
+            type: String,
+            enum: ["pending", "approved", "rejected"],
+            default: "approved",
+        },
+
         meta: { type: Schema.Types.Mixed },
     },
     { timestamps: true }
@@ -48,4 +62,7 @@ earningSessionSchema.index({ value: 1 });
 earningSessionSchema.index({ business: 1, isActive: 1 });
 earningSessionSchema.index({ expiresAt: 1 });
 
-export const EarningSession = model<IEarningSession>("EarningSession", earningSessionSchema);
+export const EarningSession = model<IEarningSession>(
+    "EarningSession",
+    earningSessionSchema
+);
