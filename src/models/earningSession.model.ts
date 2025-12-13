@@ -40,7 +40,7 @@ const earningSessionSchema = new Schema<IEarningSession>(
 
         value: { type: String },
 
-        points: { type: Number, required: true, min: 1 },
+        points: { type: Number, required: true, min: 0 },
 
         expiresAt: { type: Date },
 

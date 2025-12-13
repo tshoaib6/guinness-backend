@@ -140,10 +140,11 @@ export const createBarQrSessionController = async (req: Request, res: Response) 
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
-
 export const uploadReceiptSessionController = async (req: Request, res: Response) => {
     try {
-        const { consumerId, businessId, receiptData } = req.body;
+        let { consumerId, businessId, receiptData } = req.body;
+
+        console.log("req body", req.body);
 
         if (!consumerId || !businessId || !receiptData) {
             return res.status(400).json({
@@ -152,8 +153,17 @@ export const uploadReceiptSessionController = async (req: Request, res: Response
             });
         }
 
+        // ⭐ FIX: Parse receiptData if it comes as string (FormData case)
+        if (typeof receiptData === "string") {
+            receiptData = JSON.parse(receiptData);
+        }
+
         // Call service
-        const result = await uploadReceiptSessionService(consumerId, businessId, receiptData);
+        const result = await uploadReceiptSessionService(
+            consumerId,
+            businessId,
+            receiptData
+        );
 
         if (!result.success) {
             return res.status(400).json(result);

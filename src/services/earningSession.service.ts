@@ -344,7 +344,7 @@ export const uploadReceiptSessionService = async (
             return { success: false, message: "Business not found or inactive." };
 
         // ⭐ Points calculation
-        let points = 0;
+        let points;
         let caseQuantity = 0;
 
         switch (receiptData.type) {
