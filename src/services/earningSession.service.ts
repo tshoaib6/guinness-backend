@@ -324,54 +324,79 @@ export const uploadReceiptSessionService = async (
         items: { name: string; quantity: number }[];
         totalAmount: number;
         bottleCount?: number;
-        caseCount?: number; // can be fractional e.g., 0.25, 0.5, 0.75, 1
-        type: "single" | "case";
-        image?: Buffer | string; // ⭐ optional image buffer or file path
+        caseCount?: number;
+        type:
+        | "single"
+        | "case_0_25"
+        | "case_0_5"
+        | "case_0_75"
+        | "case_1";
+        image?: Buffer | string;
     }
 ) => {
     try {
         const consumer = await User.findById(consumerId);
-        if (!consumer) return { success: false, message: "Consumer not found." };
+        if (!consumer)
+            return { success: false, message: "Consumer not found." };
 
         const business = await Business.findById(businessId);
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
-        // ⭐ Calculate points
+        // ⭐ Points calculation
         let points = 0;
+        let caseQuantity = 0;
 
-        if (receiptData.type === "single") {
-            points = 10;
-        } else if (receiptData.type === "case" && receiptData.caseCount) {
-            const count = receiptData.caseCount;
-            if (count === 0.25) points = 10;
-            else if (count === 0.5) points = 25;
-            else if (count === 0.75) points = 35;
-            else if (count === 1) points = 50;
-            else points = Math.round(count * 50); // fallback for other fractions
+        switch (receiptData.type) {
+            case "single":
+                points = 10;
+                break;
+
+            case "case_0_25":
+                caseQuantity = 0.25;
+                points = Math.round(50 * 0.25);
+                break;
+
+            case "case_0_5":
+                caseQuantity = 0.5;
+                points = Math.round(50 * 0.5);
+                break;
+
+            case "case_0_75":
+                caseQuantity = 0.75;
+                points = Math.round(50 * 0.75);
+                break;
+
+            case "case_1":
+                caseQuantity = 1;
+                points = 50;
+                break;
         }
 
         const metaData: any = {
             category: receiptData.type,
             extractedData: receiptData.items,
             totalAmount: receiptData.totalAmount,
-            caseCount: receiptData.caseCount
+            caseQuantity
         };
 
         // ⭐ Upload image to Cloudinary if provided
         if (receiptData.image) {
-            const imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
+            const imageUrl = await uploadToCloudinary(
+                receiptData.image,
+                "receipts"
+            );
             metaData.imageUrl = imageUrl;
         }
 
         const session = new EarningSession({
             business: new Types.ObjectId(businessId),
             type: "receipt_upload",
-            value: crypto.randomBytes(10).toString("hex"), // invoice/receipt id
+            value: crypto.randomBytes(10).toString("hex"),
             points,
             isActive: true,
             meta: metaData,
-            status: "approved" // default approved
+            status: "approved"
         });
 
         await session.save();
@@ -379,29 +404,33 @@ export const uploadReceiptSessionService = async (
         consumer.points += points;
         await consumer.save();
 
+        // ⭐ Business stats update
         if (business.name === "Supermarket") {
             if (!(business as any).stats) (business as any).stats = {};
             const stats = (business as any).stats;
 
             stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
 
-            if (receiptData.bottleCount)
-                stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
+            if (receiptData.bottleCount) {
+                stats.bottlesSold =
+                    (stats.bottlesSold || 0) + receiptData.bottleCount;
+            }
 
-            if (receiptData.caseCount)
-                stats.casesSold = (stats.casesSold || 0) + receiptData.caseCount;
+            if (caseQuantity) {
+                stats.casesSold = (stats.casesSold || 0) + caseQuantity;
+            }
 
             await business.save();
         }
 
-        // Record user history
+        // ⭐ User history
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
             relatedBusinessId: businessId,
             sessionId: session._id,
-            details: session.value // invoice id
+            details: session.value
         });
 
         return {
