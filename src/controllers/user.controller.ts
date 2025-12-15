@@ -14,6 +14,7 @@ import {
   deleteUserService,
   updateUserStatusService,
   verifyPasswordResetOtpService,
+  getUserDashboardSummaryService,
 } from "../services/user.service";
 
 // ---------------- Registration Controller ----------------
@@ -259,5 +260,28 @@ export const updateUserStatusController = async (req: Request, res: Response) =>
   } catch (error) {
     console.error("Update user status error:", error);
     res.status(500).json({ success: false, message: "Server error." });
+  }
+};
+
+
+
+export const getUserDashboardSummaryController = async (
+  req: Request,
+  res: Response
+) => {
+  try {
+    const summary = await getUserDashboardSummaryService();
+
+    return res.status(200).json({
+      success: true,
+      message: "User dashboard summary fetched successfully",
+      data: summary,
+    });
+  } catch (error) {
+    console.error("User dashboard summary error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch user dashboard summary",
+    });
   }
 };

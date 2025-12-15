@@ -521,3 +521,65 @@ export const updateUserStatusService = async (
     data: { id: user._id, status: user.status },
   };
 };
+
+
+export const getUserDashboardSummaryService = async () => {
+  // ---------- BASIC COUNTS ----------
+  const totalUsers = await User.countDocuments();
+  const totalConsumers = await User.countDocuments({ role: "consumer" });
+  const totalAdmins = await User.countDocuments({ role: "admin" });
+  const totalBusinesses = await User.countDocuments({ role: "business" });
+
+  // ---------- USER STATUS ----------
+  const activeUsers = await User.countDocuments({ status: "active" });
+  const pendingUsers = await User.countDocuments({ status: "pending" });
+  const blockedUsers = await User.countDocuments({ status: "blocked" });
+
+  // ---------- BUSINESS TYPES (DYNAMIC) ----------
+  const businessByType = await User.aggregate([
+    { $match: { role: "business" } },
+    {
+      $group: {
+        _id: "$businessInfo.businessType",
+        count: { $sum: 1 },
+      },
+    },
+    {
+      $project: {
+        _id: 0,
+        businessType: "$_id",
+        count: 1,
+      },
+    },
+  ]);
+
+  // ---------- BUSINESS APPROVAL ----------
+  const approvedBusinesses = await User.countDocuments({
+    role: "business",
+    "businessInfo.approvedByAdmin": true,
+  });
+
+  const unapprovedBusinesses = await User.countDocuments({
+    role: "business",
+    "businessInfo.approvedByAdmin": false,
+  });
+
+  return {
+    totalUsers,
+    roles: {
+      consumers: totalConsumers,
+      businesses: totalBusinesses,
+      admins: totalAdmins,
+    },
+    status: {
+      active: activeUsers,
+      pending: pendingUsers,
+      blocked: blockedUsers,
+    },
+    businesses: {
+      approved: approvedBusinesses,
+      unapproved: unapprovedBusinesses,
+      byType: businessByType,
+    },
+  };
+};
