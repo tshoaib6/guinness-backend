@@ -363,3 +363,22 @@ export const getBusinessQrStatsService = async (businessId: string) => {
         return { success: false, message: "Failed to fetch QR stats" };
     }
 };
+
+
+
+export const getUserHistoryByBusinessIdWithoutQrCodeCreateService = async (
+    businessId: string,
+    options: PaginationOptions = {}
+): Promise<PaginationResult<any>> => {
+    try {
+        const query = {
+            relatedBusiness: new Types.ObjectId(businessId),
+            actionType: { $nin: ["qr_code_create"] }
+        };
+
+        return await paginate(UserHistory, query, options, "");
+    } catch (error) {
+        console.error(error);
+        throw new Error("Failed to fetch business history (filtered)");
+    }
+};

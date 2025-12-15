@@ -6,6 +6,7 @@ import {
     getUserHistoryByBusinessIdService,
     getBusinessQrHistoryService,
     getBusinessQrStatsService,
+    getUserHistoryByBusinessIdWithoutQrCodeCreateService,
 
 } from "../services/userHistory.service";
 import { PaginationOptions } from "../utils/pagination";
@@ -138,5 +139,49 @@ export const getBusinessQrStatsController = async (req: Request, res: Response) 
     } catch (err) {
         console.error(err);
         return res.status(500).json({ success: false, message: "Server error" });
+    }
+};
+
+
+
+export const getUserHistoryByBusinessIdWithoutQrCodeCreateController = async (
+    req: Request,
+    res: Response
+) => {
+    try {
+        const { businessId } = req.params;
+
+        if (!businessId) {
+            return res.status(400).json({
+                success: false,
+                message: "businessId is required"
+            });
+        }
+
+        const options = {
+            page: Number(req.query.page) || 1,
+            limit: Number(req.query.limit) || 10,
+            sort: {
+                createdAt: -1
+            }
+        };
+
+        const result = await getUserHistoryByBusinessIdWithoutQrCodeCreateService(
+            businessId,
+            options
+        );
+
+        return res.status(200).json({
+            success: true,
+            message: "Business history fetched successfully",
+            data: result
+        });
+    } catch (error) {
+        console.error("getUserHistoryByBusinessIdWithoutQrCodeCreateController:", error);
+
+        return res.status(500).json({
+            success: false,
+            message: "Failed to fetch business history"
+        });
     }
 };
