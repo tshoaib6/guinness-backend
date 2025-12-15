@@ -43,11 +43,25 @@ export const getAllUserHistoryController = async (req: Request, res: Response) =
             page: Number(req.query.page) || 1,
             limit: Number(req.query.limit) || 20,
             sortBy: String(req.query.sortBy) || "timestamp",
-            sortOrder: String(req.query.sortOrder) as "asc" | "desc" || "desc",
+            sortOrder: (String(req.query.sortOrder) as "asc" | "desc") || "desc",
             search: String(req.query.search) || undefined,
         };
 
+        // ⭐ Handle actionType filter safely
+        const actionTypeQuery = req.query.actionType;
+
+        if (actionTypeQuery) {
+            if (Array.isArray(actionTypeQuery)) {
+                // Filter to only keep strings
+                options.actionType = actionTypeQuery.filter((v): v is string => typeof v === "string");
+            } else if (typeof actionTypeQuery === "string") {
+                // Handle comma-separated string from frontend
+                options.actionType = actionTypeQuery.split(",").map(v => v.trim());
+            }
+        }
+
         const result = await getAllUserHistoryService(options);
+
         return res.status(200).json({ success: true, data: result });
     } catch (error) {
         console.error(error);

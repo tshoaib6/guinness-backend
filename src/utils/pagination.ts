@@ -4,6 +4,8 @@ export interface PaginationOptions {
   sortBy?: string;
   sortOrder?: "asc" | "desc";
   search?: string; // optional, handled by service
+  actionType?: string | string[]; // ⭐ NEW
+
 }
 
 export interface PaginationResult<T> {

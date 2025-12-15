@@ -50,18 +50,39 @@ export const getAllUserHistoryService = async (
         const sortBy = options.sortBy || "createdAt";
         const sortOrder = options.sortOrder === "asc" ? 1 : -1;
 
-        const total = await UserHistory.countDocuments({});
+        // ⭐ Build filter object
+        const filter: any = {};
+
+        if (options.actionType) {
+            if (Array.isArray(options.actionType)) {
+                filter.actionType = { $in: options.actionType };
+            } else {
+                filter.actionType = options.actionType;
+            }
+        }
+
+        // ⭐ Count AFTER filter
+        const total = await UserHistory.countDocuments(filter);
         const totalPages = Math.ceil(total / limit);
 
-        const histories = await UserHistory.find({})
+        const histories = await UserHistory.find(filter)
             .populate("user", "firstName lastName role")
-            .populate("relatedBusiness", "businessInfo.businessName businessInfo.businessType")
+            .populate(
+                "relatedBusiness",
+                "businessInfo.businessName businessInfo.businessType"
+            )
             .sort({ [sortBy]: sortOrder })
             .skip((page - 1) * limit)
             .limit(limit)
             .lean();
 
-        return { total, page, limit, totalPages, data: histories };
+        return {
+            total,
+            page,
+            limit,
+            totalPages,
+            data: histories
+        };
     } catch (error) {
         console.error(error);
         throw new Error("Failed to fetch histories");
