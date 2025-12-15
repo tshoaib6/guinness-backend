@@ -11,7 +11,8 @@ import {
     createBarQrSessionService,
     uploadReceiptSessionService,
     getAllUploadedReceiptsService,
-    GetReceiptsOptions
+    GetReceiptsOptions,
+    updateReceiptStatusService
 } from "../services/earningSession.service";
 
 
@@ -218,5 +219,39 @@ export const getAllUploadedReceiptsController = async (req: Request, res: Respon
     } catch (error) {
         console.error(error);
         return res.status(500).json({ success: false, message: "Failed to fetch uploaded receipts" });
+    }
+};
+
+export const updateReceiptStatusController = async (req: Request, res: Response) => {
+    try {
+        const { sessionId, status, adminNotes } = req.body;
+
+        if (!sessionId || !status) {
+            return res.status(400).json({ success: false, message: "sessionId and status are required." });
+        }
+
+        if (!["approved", "pending", "rejected"].includes(status)) {
+            return res.status(400).json({ success: false, message: "Invalid status value." });
+        }
+
+        const result = await updateReceiptStatusService({ sessionId, status, adminNotes });
+
+        if (!result.success) {
+            return res.status(400).json(result);
+        }
+
+        // Optional warning if userId not found
+        if (result.success && result.session && !result.session.meta?.userId) {
+            return res.status(200).json({
+                success: true,
+                message: "Receipt status updated, but user history was not recorded (userId missing).",
+                session: result.session
+            });
+        }
+
+        return res.status(200).json(result);
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Server error" });
     }
 };

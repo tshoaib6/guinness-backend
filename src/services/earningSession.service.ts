@@ -499,3 +499,46 @@ export const getAllUploadedReceiptsService = async (
         throw new Error("Failed to fetch uploaded receipts");
     }
 };
+interface UpdateReceiptStatusOptions {
+    sessionId: string;
+    status: "approved" | "pending" | "rejected";
+    adminNotes?: string;
+}
+
+export const updateReceiptStatusService = async (
+    options: UpdateReceiptStatusOptions
+) => {
+    try {
+        const { sessionId, status, adminNotes } = options;
+
+        const session = await EarningSession.findById(sessionId);
+        if (!session) {
+            return { success: false, message: "Receipt session not found." };
+        }
+
+        // Update status
+        session.status = status;
+        if (adminNotes) session.meta = { ...session.meta, adminNotes };
+        await session.save();
+
+        // ⭐ Get the userId from meta (since consumer field does not exist)
+        const userId = session.meta?.userId as string; // assume it exists
+
+        if (userId) {
+            // Record user history
+            await recordUserHistoryService({
+                userId,
+                actionType: "receipt_status_update",
+                points: status === "rejected" ? -session.points : 0, // optional points deduction
+                relatedBusinessId: session.business.toString(),
+                sessionId: session._id.toString(),
+                details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
+            });
+        }
+
+        return { success: true, message: "Receipt status updated.", session };
+    } catch (error) {
+        console.error(error);
+        return { success: false, message: "Failed to update receipt status." };
+    }
+};

@@ -11,6 +11,7 @@ import {
     createBarQrSessionController,
     uploadReceiptSessionController,
     getAllUploadedReceiptsController,
+    updateReceiptStatusController,
 
 } from "../controllers/earningSession.controller";
 import { authenticateAdmin, authenticateUser } from "../middlewares/auth";
@@ -46,6 +47,11 @@ router.post("/upload-receipt", authenticateUser, upload.single("image"), uploadR
 
 router.get("/uploaded-receipts", authenticateAdmin, getAllUploadedReceiptsController);
 
+router.patch(
+    "/update-receipt-status",
+    authenticateAdmin,
+    updateReceiptStatusController
+);
 
 // router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
 // router.post("/upload-receipt", authenticateUser,);

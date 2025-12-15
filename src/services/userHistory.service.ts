@@ -150,7 +150,7 @@ export const getUserHistoryByBusinessIdService = async (
             .lean();
 
         return {
-            data,                // ✅ use `data` instead of `items`
+            data,
             total,
             page,
             limit,

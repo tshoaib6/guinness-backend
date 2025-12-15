@@ -4,7 +4,7 @@ export interface IUserHistory extends Document {
     user: Types.ObjectId;               // The user performing the action (consumer or business)
     relatedBusiness?: Types.ObjectId;   // Business involved (if any)
     session?: Types.ObjectId;           // Link to EarningSession or other relevant session
-    actionType: "qr_scan" | "receipt_upload" | "manual_entry" | "points_awarded" | "points_deducted" | "qr_code_create"; // Flexible
+    actionType: "qr_scan" | "receipt_upload" | "manual_entry" | "points_awarded" | "points_deducted" | "qr_code_create" | "receipt_status_update"; // Flexible
     points?: number;                    // Points earned or deducted (optional)
     details?: any;                      // Any extra info, e.g., QR value, receipt ID, meta info
     timestamp: Date;                    // When the action happened
@@ -25,7 +25,8 @@ const userHistorySchema = new Schema<IUserHistory>(
                 "manual_entry",
                 "points_awarded",
                 "points_deducted",
-                "qr_code_create"
+                "qr_code_create",
+                "receipt_status_update"
             ],
             required: true,
         },
