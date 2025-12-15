@@ -372,8 +372,6 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 //     }
 // };
 
-
-
 export const uploadReceiptSessionService = async (
     consumerId: string,
     businessId: string,
@@ -392,57 +390,39 @@ export const uploadReceiptSessionService = async (
     }
 ) => {
     try {
-        // ✅ Fetch consumer
         const consumer = await User.findById(consumerId);
-        if (!consumer) return { success: false, message: "Consumer not found." };
+        if (!consumer)
+            return { success: false, message: "Consumer not found." };
 
-        // ✅ Fetch business
         const business = await Business.findById(businessId);
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
-        // ⭐ Points calculation
-        let points = 0;
+        // Points calculation
+        let points;
         let caseQuantity = 0;
 
         switch (receiptData.type) {
-            case "single":
-                points = 10;
-                break;
-            case "case_0_25":
-                caseQuantity = 0.25;
-                points = Math.round(50 * 0.25);
-                break;
-            case "case_0_5":
-                caseQuantity = 0.5;
-                points = Math.round(50 * 0.5);
-                break;
-            case "case_0_75":
-                caseQuantity = 0.75;
-                points = Math.round(50 * 0.75);
-                break;
-            case "case_1":
-                caseQuantity = 1;
-                points = 50;
-                break;
+            case "single": points = 10; break;
+            case "case_0_25": caseQuantity = 0.25; points = Math.round(50 * 0.25); break;
+            case "case_0_5": caseQuantity = 0.5; points = Math.round(50 * 0.5); break;
+            case "case_0_75": caseQuantity = 0.75; points = Math.round(50 * 0.75); break;
+            case "case_1": caseQuantity = 1; points = 50; break;
         }
 
-        // ⭐ Prepare metaData
         const metaData: any = {
             category: receiptData.type,
             extractedData: receiptData.items,
             totalAmount: receiptData.totalAmount,
             caseQuantity,
-            userId: consumerId, // ✅ store userId here
+            userId: consumerId // ✅ store userId here for future reference
         };
 
-        // ⭐ Upload image to Cloudinary if exists
         if (receiptData.image) {
             const imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
             metaData.imageUrl = imageUrl;
         }
 
-        // ✅ Create EarningSession
         const session = new EarningSession({
             business: new Types.ObjectId(businessId),
             type: "receipt_upload",
@@ -450,16 +430,15 @@ export const uploadReceiptSessionService = async (
             points,
             isActive: true,
             meta: metaData,
-            status: "approved",
+            status: "approved"
         });
 
         await session.save();
 
-        // ✅ Update consumer points
         consumer.points += points;
         await consumer.save();
 
-        // ✅ Update business stats
+        // Business stats update
         if (business.name === "Supermarket") {
             if (!(business as any).stats) (business as any).stats = {};
             const stats = (business as any).stats;
@@ -471,26 +450,25 @@ export const uploadReceiptSessionService = async (
             await business.save();
         }
 
-        // ✅ Record user history
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
             relatedBusinessId: businessId,
-            sessionId: session._id.toString(),
+            sessionId: session._id,
             details: JSON.stringify({
                 sessionValue: session.value,
                 caseQuantity,
                 bottleCount: receiptData.bottleCount || 0,
-                imageUrl: metaData.imageUrl || null,
-            }),
+                imageUrl: metaData.imageUrl
+            })
         });
 
         return {
             success: true,
             message: "Receipt processed and points added.",
             points: consumer.points,
-            sessionId: session._id.toString(),
+            sessionId: session._id
         };
     } catch (error) {
         console.error(error);
@@ -508,7 +486,7 @@ export interface GetReceiptsOptions {
 
 }
 export const getAllUploadedReceiptsService = async (
-    options: GetReceiptsOptions = {}
+    options: GetReceiptsOptions & { caseType?: string | string[]; status?: string | string[] } = {}
 ) => {
     try {
         const page = options.page && options.page > 0 ? options.page : 1;
@@ -516,16 +494,17 @@ export const getAllUploadedReceiptsService = async (
         const sortBy = options.sortBy || "createdAt";
         const sortOrder = options.sortOrder === "asc" ? 1 : -1;
 
-        // ⭐ Base filter: only receipt_upload sessions
+        // Base filter
         const filter: any = { type: "receipt_upload" };
 
-        // ⭐ Add caseType filter if provided
+        // Filter by case type
         if (options.caseType) {
-            if (Array.isArray(options.caseType)) {
-                filter["meta.category"] = { $in: options.caseType };
-            } else {
-                filter["meta.category"] = options.caseType;
-            }
+            filter["meta.category"] = Array.isArray(options.caseType) ? { $in: options.caseType } : options.caseType;
+        }
+
+        // Filter by status
+        if (options.status) {
+            filter.status = Array.isArray(options.status) ? { $in: options.status } : options.status;
         }
 
         const total = await EarningSession.countDocuments(filter);
@@ -538,52 +517,54 @@ export const getAllUploadedReceiptsService = async (
             .limit(limit)
             .lean();
 
-        return {
-            total,
-            page,
-            limit,
-            totalPages,
-            data: receipts
-        };
+        return { total, page, limit, totalPages, data: receipts };
     } catch (error) {
-        console.error(error);
+        console.error("Error in getAllUploadedReceiptsService:", error);
         throw new Error("Failed to fetch uploaded receipts");
     }
 };
+
 interface UpdateReceiptStatusOptions {
     sessionId: string;
     status: "approved" | "pending" | "rejected";
     adminNotes?: string;
 }
-export const updateReceiptStatusService = async (options: UpdateReceiptStatusOptions) => {
+export const updateReceiptStatusService = async (
+    options: UpdateReceiptStatusOptions
+) => {
     try {
         const { sessionId, status, adminNotes } = options;
 
-        // ✅ Fetch session
         const session = await EarningSession.findById(sessionId);
-        if (!session) return { success: false, message: "Receipt session not found." };
+        if (!session) {
+            return { success: false, message: "Receipt session not found." };
+        }
 
-        // ✅ Update status and admin notes
+        // Update status
         session.status = status;
         if (adminNotes) session.meta = { ...session.meta, adminNotes };
         await session.save();
 
-        // ✅ Record user history
-        const userId = session.meta?.userId as string | undefined;
-        if (userId) {
-            await recordUserHistoryService({
-                userId,
-                actionType: "receipt_status_update",
-                points: status === "rejected" ? -session.points : 0,
-                relatedBusinessId: session.business.toString(),
-                sessionId: session._id.toString(),
-                details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`,
-            });
-        } else {
-            console.warn("updateReceiptStatusService: userId missing in session.meta. History not recorded.");
+        const userId = session.meta?.userId as string;
+        if (!userId) {
+            return {
+                success: true,
+                message: "Receipt status updated, but userId missing in session. User history not recorded.",
+                session
+            };
         }
 
-        return { success: true, message: "Receipt status updated.", session };
+        // Record user history
+        await recordUserHistoryService({
+            userId,
+            actionType: "receipt_status_update",
+            points: status === "rejected" ? -session.points : 0,
+            relatedBusinessId: session.business.toString(),
+            sessionId: session._id.toString(),
+            details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
+        });
+
+        return { success: true, message: "Receipt status updated successfully.", session };
     } catch (error) {
         console.error(error);
         return { success: false, message: "Failed to update receipt status." };
