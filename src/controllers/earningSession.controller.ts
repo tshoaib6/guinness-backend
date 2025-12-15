@@ -14,6 +14,7 @@ import {
     GetReceiptsOptions,
     updateReceiptStatusService
 } from "../services/earningSession.service";
+import { User } from "../models/user.model";
 
 
 // ------------------- Single QR -------------------
@@ -241,22 +242,24 @@ export const updateReceiptStatusController = async (req: Request, res: Response)
             return res.status(400).json(result);
         }
 
-        // ✅ Check if user history could not be recorded
-        const userIdMissing = !result.session?.meta?.userId;
+        const session = result.session;
+        const userIdMissing = !session?.meta?.userId;
+        let updatedPoints: number | undefined;
 
-        if (userIdMissing) {
-            return res.status(200).json({
-                success: true,
-                message: "Receipt status updated, but user history was not recorded (userId missing).",
-                session: result.session,
-            });
+        // Get updated user points if userId exists
+        if (!userIdMissing) {
+            const user = await User.findById(session.meta.userId);
+            updatedPoints = user?.points;
         }
 
-        // ✅ Success response
+        // ✅ Response
         return res.status(200).json({
             success: true,
-            message: "Receipt status updated successfully.",
-            session: result.session,
+            message: userIdMissing
+                ? "Receipt status updated, but user history was not recorded (userId missing)."
+                : "Receipt status updated successfully.",
+            session,
+            updatedPoints
         });
     } catch (error) {
         console.error("Error in updateReceiptStatusController:", error);

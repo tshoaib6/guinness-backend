@@ -540,33 +540,48 @@ export const updateReceiptStatusService = async (
             return { success: false, message: "Receipt session not found." };
         }
 
-        // Update status
+        // ⭐ Store previous status for points adjustment
+        const previousStatus = session.status;
+
+        // Update status and admin notes
         session.status = status;
         if (adminNotes) session.meta = { ...session.meta, adminNotes };
         await session.save();
 
+        // ⭐ Get the userId from meta
         const userId = session.meta?.userId as string;
-        if (!userId) {
-            return {
-                success: true,
-                message: "Receipt status updated, but userId missing in session. User history not recorded.",
-                session
-            };
+
+        if (userId) {
+            const user = await User.findById(userId);
+            if (user) {
+                // Adjust points based on status change
+                // If changing to rejected and previous was approved, subtract points
+                if (status === "rejected" && previousStatus !== "rejected") {
+                    user.points = Math.max(0, user.points - session.points);
+                }
+                // If changing to approved and previous was rejected, add points back
+                if (status === "approved" && previousStatus === "rejected") {
+                    user.points += session.points;
+                }
+                await user.save();
+            }
+
+            // Record user history
+            await recordUserHistoryService({
+                userId,
+                actionType: "receipt_status_update",
+                points: status === "rejected" && previousStatus !== "rejected" ? -session.points :
+                    status === "approved" && previousStatus === "rejected" ? session.points : 0,
+                relatedBusinessId: session.business.toString(),
+                sessionId: session._id.toString(),
+                details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
+            });
         }
 
-        // Record user history
-        await recordUserHistoryService({
-            userId,
-            actionType: "receipt_status_update",
-            points: status === "rejected" ? -session.points : 0,
-            relatedBusinessId: session.business.toString(),
-            sessionId: session._id.toString(),
-            details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
-        });
-
-        return { success: true, message: "Receipt status updated successfully.", session };
+        return { success: true, message: "Receipt status updated.", session };
     } catch (error) {
-        console.error(error);
+        console.error("Error in updateReceiptStatusService:", error);
         return { success: false, message: "Failed to update receipt status." };
     }
 };
+
