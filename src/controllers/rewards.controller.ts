@@ -49,7 +49,17 @@ export const getAllRewardsController = async (req: Request, res: Response) => {
       search: req.query.search ? String(req.query.search) : undefined,
     };
 
-    const result = await getAllRewardsService(options);
+    // ✅ Extract filters from query
+    const filters = {
+      rewardType: req.query.rewardType ? String(req.query.rewardType) : undefined,
+      isActive: req.query.isActive !== undefined ? req.query.isActive === "true" : undefined,
+      minPoints: req.query.minPoints ? Number(req.query.minPoints) : undefined,
+      maxPoints: req.query.maxPoints ? Number(req.query.maxPoints) : undefined,
+      expiryBefore: req.query.expiryBefore ? new Date(String(req.query.expiryBefore)) : undefined,
+      expiryAfter: req.query.expiryAfter ? new Date(String(req.query.expiryAfter)) : undefined,
+    };
+
+    const result = await getAllRewardsService(options, filters);
 
     return res.status(result.success ? 200 : 400).json(result);
   } catch (error: any) {
@@ -59,6 +69,7 @@ export const getAllRewardsController = async (req: Request, res: Response) => {
     });
   }
 };
+
 
 // ---------- Update Reward Status ----------
 export const updateRewardStatusController = async (req: Request, res: Response) => {
@@ -131,7 +142,7 @@ export const updateRewardController = async (req: Request, res: Response) => {
     const result = await updateRewardService(req.params.rewardId, updateData);
 
     return res.status(result.success ? 200 : 400).json(result);
-  } catch (error:any) {
+  } catch (error: any) {
     return res
       .status(500)
       .json({ success: false, message: error.message || "Server error" });

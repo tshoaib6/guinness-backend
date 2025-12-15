@@ -40,22 +40,58 @@ export const createRewardService = async (data: any) => {
     };
   }
 };
+interface FilterOptions {
+  rewardType?: string;
+  isActive?: boolean;
+  minPoints?: number;
+  maxPoints?: number;
+  expiryBefore?: Date;
+  expiryAfter?: Date;
+}
 
-export const getAllRewardsService = async (options: PaginationOptions = {}) => {
+export const getAllRewardsService = async (
+  options: PaginationOptions = {},
+  filters: FilterOptions = {}
+) => {
   try {
     const query: any = {};
 
+    // ✅ Search by reward name (case-insensitive)
     if (options.search?.trim()) {
       query.rewardName = { $regex: options.search.trim(), $options: "i" };
     }
 
-    // ✔ Step 1: Get paginated results
+    // ✅ Filter by rewardType
+    if (filters.rewardType) {
+      query.rewardType = filters.rewardType;
+    }
+
+    // ✅ Filter by isActive
+    if (typeof filters.isActive === "boolean") {
+      query.isActive = filters.isActive;
+    }
+
+    // ✅ Filter by pointsRequired range
+    if (filters.minPoints !== undefined || filters.maxPoints !== undefined) {
+      query.pointsRequired = {};
+      if (filters.minPoints !== undefined) query.pointsRequired.$gte = filters.minPoints;
+      if (filters.maxPoints !== undefined) query.pointsRequired.$lte = filters.maxPoints;
+    }
+
+    // ✅ Filter by expiryDate
+    if (filters.expiryBefore || filters.expiryAfter) {
+      query.expiryDate = {};
+      if (filters.expiryBefore) query.expiryDate.$lte = filters.expiryBefore;
+      if (filters.expiryAfter) query.expiryDate.$gte = filters.expiryAfter;
+    }
+
+    // ❗ Step 1: Get paginated results
     const result = await paginate(Reward, query, options);
 
-    // ✔ Step 2: Populate *after* pagination
+    // ❗ Step 2: Populate business field after pagination
     const populatedData = await Reward.populate(result.data, {
       path: "business",
-      select: "name", // only business name
+      select: "name",
     });
 
     return {
@@ -67,7 +103,7 @@ export const getAllRewardsService = async (options: PaginationOptions = {}) => {
         limit: result.limit,
         totalPages: result.totalPages,
       },
-      data: populatedData, // ⭐ returning populated documents
+      data: populatedData,
     };
   } catch (error: any) {
     return {
@@ -76,8 +112,6 @@ export const getAllRewardsService = async (options: PaginationOptions = {}) => {
     };
   }
 };
-
-
 export const updateRewardStatusService = async (rewardId: string, isActive: boolean) => {
   try {
     const reward = await Reward.findByIdAndUpdate(
