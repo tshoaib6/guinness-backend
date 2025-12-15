@@ -119,15 +119,43 @@ export const getUserHistoryByUserIdService = async (
     }
 };
 
-
-// Get user history by business ID with pagination
 export const getUserHistoryByBusinessIdService = async (
     businessId: string,
     options: PaginationOptions = {}
-): Promise<PaginationResult<any>> => {
+): Promise<PaginationResult<IUserHistory>> => {
     try {
-        const query = { relatedBusiness: new Types.ObjectId(businessId) };
-        return await paginate(UserHistory, query, options, "");
+        const page = options.page ?? 1;
+        const limit = options.limit ?? 20;
+        const sortField = options.sortBy ?? "timestamp";
+        const sortOrder = options.sortOrder === "asc" ? 1 : -1;
+
+        // Build query
+        const query: any = { relatedBusiness: new Types.ObjectId(businessId) };
+        if (options.actionType) {
+            query.actionType = Array.isArray(options.actionType)
+                ? { $in: options.actionType }
+                : options.actionType;
+        }
+
+        // Count total documents
+        const total = await UserHistory.countDocuments(query);
+
+        // Fetch paginated & populated results
+        const data = await UserHistory.find(query)
+            .populate({ path: "user", select: "firstName lastName role" })
+            .populate({ path: "relatedBusiness", select: "businessInfo" })
+            .sort({ [sortField]: sortOrder })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+
+        return {
+            data,                // ✅ use `data` instead of `items`
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+        };
     } catch (error) {
         console.error(error);
         throw new Error("Failed to fetch business history");

@@ -93,12 +93,17 @@ export const getUserHistoryByUserIdController = async (req: Request, res: Respon
 export const getUserHistoryByBusinessIdController = async (req: Request, res: Response) => {
     try {
         const { businessId } = req.params;
+
         const options: PaginationOptions = {
             page: Number(req.query.page) || 1,
             limit: Number(req.query.limit) || 20,
             sortBy: String(req.query.sortBy) || "timestamp",
-            sortOrder: String(req.query.sortOrder) as "asc" | "desc" || "desc",
-            search: String(req.query.search) || undefined,
+            sortOrder:
+                req.query.sortOrder === "asc" || req.query.sortOrder === "desc"
+                    ? (req.query.sortOrder as "asc" | "desc")
+                    : "desc",
+            search: req.query.search ? String(req.query.search) : undefined,
+            actionType: req.query.actionType as string | string[] | undefined, // ✅ direct cast
         };
 
         const result = await getUserHistoryByBusinessIdService(businessId, options);

@@ -6,6 +6,7 @@ export interface PaginationOptions {
   search?: string; // optional, handled by service
   actionType?: string | string[]; // ⭐ NEW
 
+
 }
 
 export interface PaginationResult<T> {

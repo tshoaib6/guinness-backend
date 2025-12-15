@@ -380,12 +380,9 @@ export const uploadReceiptSessionService = async (
             caseQuantity
         };
 
-        // ⭐ Upload image to Cloudinary if provided
+        let imageUrl: string | undefined;
         if (receiptData.image) {
-            const imageUrl = await uploadToCloudinary(
-                receiptData.image,
-                "receipts"
-            );
+            imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
             metaData.imageUrl = imageUrl;
         }
 
@@ -423,14 +420,18 @@ export const uploadReceiptSessionService = async (
             await business.save();
         }
 
-        // ⭐ User history
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
             relatedBusinessId: businessId,
             sessionId: session._id,
-            details: session.value
+            details: JSON.stringify({
+                sessionValue: session.value,
+                caseQuantity,
+                bottleCount: receiptData.bottleCount || 0,
+                imageUrl // include the uploaded image
+            })
         });
 
         return {
