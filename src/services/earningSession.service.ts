@@ -504,41 +504,50 @@ interface UpdateReceiptStatusOptions {
     status: "approved" | "pending" | "rejected";
     adminNotes?: string;
 }
-
 export const updateReceiptStatusService = async (
     options: UpdateReceiptStatusOptions
 ) => {
     try {
         const { sessionId, status, adminNotes } = options;
 
-        const session = await EarningSession.findById(sessionId);
+        // Find the session (lean for efficiency)
+        const session = await EarningSession.findById(sessionId).lean();
         if (!session) {
             return { success: false, message: "Receipt session not found." };
         }
 
-        // Update status
-        session.status = status;
-        if (adminNotes) session.meta = { ...session.meta, adminNotes };
-        await session.save();
+        // Update status and adminNotes directly in DB
+        await EarningSession.updateOne(
+            { _id: sessionId },
+            {
+                $set: {
+                    status,
+                    "meta.adminNotes": adminNotes || session.meta?.adminNotes
+                }
+            }
+        );
 
-        // ⭐ Get the userId from meta (since consumer field does not exist)
-        const userId = session.meta?.userId as string; // assume it exists
+        // Check userId in meta
+        const userId = session.meta?.userId as string | undefined;
+        let userIdMissing = false;
 
         if (userId) {
-            // Record user history
             await recordUserHistoryService({
                 userId,
                 actionType: "receipt_status_update",
-                points: status === "rejected" ? -session.points : 0, // optional points deduction
+                points: status === "rejected" ? -session.points : 0,
                 relatedBusinessId: session.business.toString(),
                 sessionId: session._id.toString(),
                 details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
             });
+        } else {
+            userIdMissing = true;
+            console.warn("No userId found in session.meta. User history not recorded.");
         }
 
-        return { success: true, message: "Receipt status updated.", session };
+        return { success: true, message: "Receipt status updated successfully.", userIdMissing };
     } catch (error) {
-        console.error(error);
+        console.error("Error in updateReceiptStatusService:", error);
         return { success: false, message: "Failed to update receipt status." };
     }
 };

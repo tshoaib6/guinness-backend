@@ -221,7 +221,6 @@ export const getAllUploadedReceiptsController = async (req: Request, res: Respon
         return res.status(500).json({ success: false, message: "Failed to fetch uploaded receipts" });
     }
 };
-
 export const updateReceiptStatusController = async (req: Request, res: Response) => {
     try {
         const { sessionId, status, adminNotes } = req.body;
@@ -240,18 +239,16 @@ export const updateReceiptStatusController = async (req: Request, res: Response)
             return res.status(400).json(result);
         }
 
-        // Optional warning if userId not found
-        if (result.success && result.session && !result.session.meta?.userId) {
+        if (result.userIdMissing) {
             return res.status(200).json({
                 success: true,
-                message: "Receipt status updated, but user history was not recorded (userId missing).",
-                session: result.session
+                message: "Receipt status updated, but user history was not recorded (userId missing)."
             });
         }
 
-        return res.status(200).json(result);
+        return res.status(200).json({ success: true, message: "Receipt status updated successfully." });
     } catch (error) {
-        console.error(error);
+        console.error("Error in updateReceiptStatusController:", error);
         return res.status(500).json({ success: false, message: "Server error" });
     }
 };
