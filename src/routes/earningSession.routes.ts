@@ -10,9 +10,10 @@ import {
     getWholesaleQrSessionsController,
     createBarQrSessionController,
     uploadReceiptSessionController,
+    getAllUploadedReceiptsController,
 
 } from "../controllers/earningSession.controller";
-import { authenticateUser } from "../middlewares/auth";
+import { authenticateAdmin, authenticateUser } from "../middlewares/auth";
 import multer from "multer";
 
 const router = Router();
@@ -42,6 +43,9 @@ router.get("/get-all-wholesale-qr", getWholesaleQrSessionsController);
 router.post("/create-qr-bar", createBarQrSessionController);
 
 router.post("/upload-receipt", authenticateUser, upload.single("image"), uploadReceiptSessionController);
+
+router.get("/uploaded-receipts", authenticateAdmin, getAllUploadedReceiptsController);
+
 
 // router.post("/upload-receipt", authenticateUser, uploadReceiptSessionController);
 // router.post("/upload-receipt", authenticateUser,);

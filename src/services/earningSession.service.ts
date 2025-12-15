@@ -444,3 +444,48 @@ export const uploadReceiptSessionService = async (
         return { success: false, message: "Receipt processing failed." };
     }
 };
+
+
+
+interface GetReceiptsOptions {
+    page?: number;
+    limit?: number;
+    sortBy?: string;
+    sortOrder?: "asc" | "desc";
+}
+
+export const getAllUploadedReceiptsService = async (
+    options: GetReceiptsOptions = {}
+) => {
+    try {
+        const page = options.page && options.page > 0 ? options.page : 1;
+        const limit = options.limit && options.limit > 0 ? options.limit : 20;
+        const sortBy = options.sortBy || "createdAt";
+        const sortOrder = options.sortOrder === "asc" ? 1 : -1;
+
+        // Filter only receipt_upload sessions
+        const filter = { type: "receipt_upload" };
+
+        const total = await EarningSession.countDocuments(filter);
+        const totalPages = Math.ceil(total / limit);
+
+        const receipts = await EarningSession.find(filter)
+            .populate("business", "businessInfo.businessName businessInfo.businessType")
+            .populate("meta.extractedData") // optional if you want to populate items
+            .sort({ [sortBy]: sortOrder })
+            .skip((page - 1) * limit)
+            .limit(limit)
+            .lean();
+
+        return {
+            total,
+            page,
+            limit,
+            totalPages,
+            data: receipts
+        };
+    } catch (error) {
+        console.error(error);
+        throw new Error("Failed to fetch uploaded receipts");
+    }
+};

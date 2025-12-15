@@ -9,7 +9,8 @@ import {
     getRoundQrSessionsService,
     getWholesaleQrSessionsService,       // ✅ NEW
     createBarQrSessionService,
-    uploadReceiptSessionService
+    uploadReceiptSessionService,
+    getAllUploadedReceiptsService
 } from "../services/earningSession.service";
 
 
@@ -187,3 +188,20 @@ export const uploadReceiptSessionController = async (
 
 
 
+export const getAllUploadedReceiptsController = async (req: Request, res: Response) => {
+    try {
+        const options = {
+            page: Number(req.query.page) || 1,
+            limit: Number(req.query.limit) || 20,
+            sortBy: String(req.query.sortBy) || "createdAt",
+            sortOrder: (String(req.query.sortOrder) as "asc" | "desc") || "desc"
+        };
+
+        const result = await getAllUploadedReceiptsService(options);
+
+        return res.status(200).json({ success: true, data: result });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({ success: false, message: "Failed to fetch uploaded receipts" });
+    }
+};
