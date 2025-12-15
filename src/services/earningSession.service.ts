@@ -242,6 +242,7 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 };
 
 
+
 // export const uploadReceiptSessionService = async (
 //     consumerId: string,
 //     businessId: string,
@@ -250,28 +251,75 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 //         totalAmount: number;
 //         bottleCount?: number;
 //         caseCount?: number;
-//         type: "single" | "case";
+//         type:
+//         | "single"
+//         | "case_0_25"
+//         | "case_0_5"
+//         | "case_0_75"
+//         | "case_1";
+//         image?: Buffer | string;
 //     }
 // ) => {
 //     try {
 //         const consumer = await User.findById(consumerId);
-//         if (!consumer) return { success: false, message: "Consumer not found." };
+//         if (!consumer)
+//             return { success: false, message: "Consumer not found." };
 
 //         const business = await Business.findById(businessId);
 //         if (!business || !business.isActive)
 //             return { success: false, message: "Business not found or inactive." };
 
-//         const points = receiptData.type === "single" ? 10 : 50;
+//         // ⭐ Points calculation
+//         let points;
+//         let caseQuantity = 0;
+
+//         switch (receiptData.type) {
+//             case "single":
+//                 points = 10;
+//                 break;
+
+//             case "case_0_25":
+//                 caseQuantity = 0.25;
+//                 points = Math.round(50 * 0.25);
+//                 break;
+
+//             case "case_0_5":
+//                 caseQuantity = 0.5;
+//                 points = Math.round(50 * 0.5);
+//                 break;
+
+//             case "case_0_75":
+//                 caseQuantity = 0.75;
+//                 points = Math.round(50 * 0.75);
+//                 break;
+
+//             case "case_1":
+//                 caseQuantity = 1;
+//                 points = 50;
+//                 break;
+//         }
+
+//         const metaData: any = {
+//             category: receiptData.type,
+//             extractedData: receiptData.items,
+//             totalAmount: receiptData.totalAmount,
+//             caseQuantity
+//         };
+
+//         let imageUrl: string | undefined;
+//         if (receiptData.image) {
+//             imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
+//             metaData.imageUrl = imageUrl;
+//         }
 
 //         const session = new EarningSession({
 //             business: new Types.ObjectId(businessId),
 //             type: "receipt_upload",
-//             value: crypto.randomBytes(10).toString("hex"), // invoice/receipt id
+//             value: crypto.randomBytes(10).toString("hex"),
 //             points,
 //             isActive: true,
-//             meta: {
-//                 category: receiptData.type
-//             }
+//             meta: metaData,
+//             status: "approved"
 //         });
 
 //         await session.save();
@@ -279,29 +327,37 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 //         consumer.points += points;
 //         await consumer.save();
 
+//         // ⭐ Business stats update
 //         if (business.name === "Supermarket") {
 //             if (!(business as any).stats) (business as any).stats = {};
 //             const stats = (business as any).stats;
 
 //             stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
 
-//             if (receiptData.bottleCount)
-//                 stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
+//             if (receiptData.bottleCount) {
+//                 stats.bottlesSold =
+//                     (stats.bottlesSold || 0) + receiptData.bottleCount;
+//             }
 
-//             if (receiptData.caseCount)
-//                 stats.casesSold = (stats.casesSold || 0) + receiptData.caseCount;
+//             if (caseQuantity) {
+//                 stats.casesSold = (stats.casesSold || 0) + caseQuantity;
+//             }
+
+//             await business.save();
 //         }
 
-//         await business.save();
-
-//         // ⭐ EXACTLY LIKE QR SCAN ⭐
 //         await recordUserHistoryService({
 //             userId: consumerId,
 //             actionType: "receipt_upload",
 //             points,
-//             relatedBusinessId: businessId,        // same as QR scan
+//             relatedBusinessId: businessId,
 //             sessionId: session._id,
-//             details: session.value                // ONLY invoice id
+//             details: JSON.stringify({
+//                 sessionValue: session.value,
+//                 caseQuantity,
+//                 bottleCount: receiptData.bottleCount || 0,
+//                 imageUrl // include the uploaded image
+//             })
 //         });
 
 //         return {
@@ -310,12 +366,13 @@ export const createBarQrSessionService = async (businessId: string, points = 5) 
 //             points: consumer.points,
 //             sessionId: session._id
 //         };
-
 //     } catch (error) {
 //         console.error(error);
 //         return { success: false, message: "Receipt processing failed." };
 //     }
 // };
+
+
 
 export const uploadReceiptSessionService = async (
     consumerId: string,
@@ -335,57 +392,57 @@ export const uploadReceiptSessionService = async (
     }
 ) => {
     try {
+        // ✅ Fetch consumer
         const consumer = await User.findById(consumerId);
-        if (!consumer)
-            return { success: false, message: "Consumer not found." };
+        if (!consumer) return { success: false, message: "Consumer not found." };
 
+        // ✅ Fetch business
         const business = await Business.findById(businessId);
         if (!business || !business.isActive)
             return { success: false, message: "Business not found or inactive." };
 
         // ⭐ Points calculation
-        let points;
+        let points = 0;
         let caseQuantity = 0;
 
         switch (receiptData.type) {
             case "single":
                 points = 10;
                 break;
-
             case "case_0_25":
                 caseQuantity = 0.25;
                 points = Math.round(50 * 0.25);
                 break;
-
             case "case_0_5":
                 caseQuantity = 0.5;
                 points = Math.round(50 * 0.5);
                 break;
-
             case "case_0_75":
                 caseQuantity = 0.75;
                 points = Math.round(50 * 0.75);
                 break;
-
             case "case_1":
                 caseQuantity = 1;
                 points = 50;
                 break;
         }
 
+        // ⭐ Prepare metaData
         const metaData: any = {
             category: receiptData.type,
             extractedData: receiptData.items,
             totalAmount: receiptData.totalAmount,
-            caseQuantity
+            caseQuantity,
+            userId: consumerId, // ✅ store userId here
         };
 
-        let imageUrl: string | undefined;
+        // ⭐ Upload image to Cloudinary if exists
         if (receiptData.image) {
-            imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
+            const imageUrl = await uploadToCloudinary(receiptData.image, "receipts");
             metaData.imageUrl = imageUrl;
         }
 
+        // ✅ Create EarningSession
         const session = new EarningSession({
             business: new Types.ObjectId(businessId),
             type: "receipt_upload",
@@ -393,59 +450,53 @@ export const uploadReceiptSessionService = async (
             points,
             isActive: true,
             meta: metaData,
-            status: "approved"
+            status: "approved",
         });
 
         await session.save();
 
+        // ✅ Update consumer points
         consumer.points += points;
         await consumer.save();
 
-        // ⭐ Business stats update
+        // ✅ Update business stats
         if (business.name === "Supermarket") {
             if (!(business as any).stats) (business as any).stats = {};
             const stats = (business as any).stats;
 
             stats.receiptsUploaded = (stats.receiptsUploaded || 0) + 1;
-
-            if (receiptData.bottleCount) {
-                stats.bottlesSold =
-                    (stats.bottlesSold || 0) + receiptData.bottleCount;
-            }
-
-            if (caseQuantity) {
-                stats.casesSold = (stats.casesSold || 0) + caseQuantity;
-            }
+            if (receiptData.bottleCount) stats.bottlesSold = (stats.bottlesSold || 0) + receiptData.bottleCount;
+            if (caseQuantity) stats.casesSold = (stats.casesSold || 0) + caseQuantity;
 
             await business.save();
         }
 
+        // ✅ Record user history
         await recordUserHistoryService({
             userId: consumerId,
             actionType: "receipt_upload",
             points,
             relatedBusinessId: businessId,
-            sessionId: session._id,
+            sessionId: session._id.toString(),
             details: JSON.stringify({
                 sessionValue: session.value,
                 caseQuantity,
                 bottleCount: receiptData.bottleCount || 0,
-                imageUrl // include the uploaded image
-            })
+                imageUrl: metaData.imageUrl || null,
+            }),
         });
 
         return {
             success: true,
             message: "Receipt processed and points added.",
             points: consumer.points,
-            sessionId: session._id
+            sessionId: session._id.toString(),
         };
     } catch (error) {
         console.error(error);
         return { success: false, message: "Receipt processing failed." };
     }
 };
-
 
 
 export interface GetReceiptsOptions {
@@ -504,33 +555,21 @@ interface UpdateReceiptStatusOptions {
     status: "approved" | "pending" | "rejected";
     adminNotes?: string;
 }
-export const updateReceiptStatusService = async (
-    options: UpdateReceiptStatusOptions
-) => {
+export const updateReceiptStatusService = async (options: UpdateReceiptStatusOptions) => {
     try {
         const { sessionId, status, adminNotes } = options;
 
-        // Find the session (lean for efficiency)
-        const session = await EarningSession.findById(sessionId).lean();
-        if (!session) {
-            return { success: false, message: "Receipt session not found." };
-        }
+        // ✅ Fetch session
+        const session = await EarningSession.findById(sessionId);
+        if (!session) return { success: false, message: "Receipt session not found." };
 
-        // Update status and adminNotes directly in DB
-        await EarningSession.updateOne(
-            { _id: sessionId },
-            {
-                $set: {
-                    status,
-                    "meta.adminNotes": adminNotes || session.meta?.adminNotes
-                }
-            }
-        );
+        // ✅ Update status and admin notes
+        session.status = status;
+        if (adminNotes) session.meta = { ...session.meta, adminNotes };
+        await session.save();
 
-        // Check userId in meta
+        // ✅ Record user history
         const userId = session.meta?.userId as string | undefined;
-        let userIdMissing = false;
-
         if (userId) {
             await recordUserHistoryService({
                 userId,
@@ -538,16 +577,15 @@ export const updateReceiptStatusService = async (
                 points: status === "rejected" ? -session.points : 0,
                 relatedBusinessId: session.business.toString(),
                 sessionId: session._id.toString(),
-                details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`
+                details: `Receipt status changed to ${status}${adminNotes ? `: ${adminNotes}` : ""}`,
             });
         } else {
-            userIdMissing = true;
-            console.warn("No userId found in session.meta. User history not recorded.");
+            console.warn("updateReceiptStatusService: userId missing in session.meta. History not recorded.");
         }
 
-        return { success: true, message: "Receipt status updated successfully.", userIdMissing };
+        return { success: true, message: "Receipt status updated.", session };
     } catch (error) {
-        console.error("Error in updateReceiptStatusService:", error);
+        console.error(error);
         return { success: false, message: "Failed to update receipt status." };
     }
 };

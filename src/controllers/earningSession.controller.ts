@@ -170,7 +170,7 @@ export const uploadReceiptSessionController = async (
         const result = await uploadReceiptSessionService(
             consumerId,
             businessId,
-            receiptData
+            { ...receiptData, userId: consumerId } // add userId explicitly to meta
         );
 
         if (!result.success) {
@@ -225,6 +225,7 @@ export const updateReceiptStatusController = async (req: Request, res: Response)
     try {
         const { sessionId, status, adminNotes } = req.body;
 
+        // ✅ Validate required fields
         if (!sessionId || !status) {
             return res.status(400).json({ success: false, message: "sessionId and status are required." });
         }
@@ -233,20 +234,30 @@ export const updateReceiptStatusController = async (req: Request, res: Response)
             return res.status(400).json({ success: false, message: "Invalid status value." });
         }
 
+        // ✅ Call service
         const result = await updateReceiptStatusService({ sessionId, status, adminNotes });
 
         if (!result.success) {
             return res.status(400).json(result);
         }
 
-        if (result.userIdMissing) {
+        // ✅ Check if user history could not be recorded
+        const userIdMissing = !result.session?.meta?.userId;
+
+        if (userIdMissing) {
             return res.status(200).json({
                 success: true,
-                message: "Receipt status updated, but user history was not recorded (userId missing)."
+                message: "Receipt status updated, but user history was not recorded (userId missing).",
+                session: result.session,
             });
         }
 
-        return res.status(200).json({ success: true, message: "Receipt status updated successfully." });
+        // ✅ Success response
+        return res.status(200).json({
+            success: true,
+            message: "Receipt status updated successfully.",
+            session: result.session,
+        });
     } catch (error) {
         console.error("Error in updateReceiptStatusController:", error);
         return res.status(500).json({ success: false, message: "Server error" });
