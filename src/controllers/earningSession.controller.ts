@@ -10,7 +10,8 @@ import {
     getWholesaleQrSessionsService,       // ✅ NEW
     createBarQrSessionService,
     uploadReceiptSessionService,
-    getAllUploadedReceiptsService
+    getAllUploadedReceiptsService,
+    GetReceiptsOptions
 } from "../services/earningSession.service";
 
 
@@ -190,13 +191,27 @@ export const uploadReceiptSessionController = async (
 
 export const getAllUploadedReceiptsController = async (req: Request, res: Response) => {
     try {
-        const options = {
+        // ⭐ Build options with pagination & sorting
+        const options: GetReceiptsOptions = {
             page: Number(req.query.page) || 1,
             limit: Number(req.query.limit) || 20,
             sortBy: String(req.query.sortBy) || "createdAt",
-            sortOrder: (String(req.query.sortOrder) as "asc" | "desc") || "desc"
+            sortOrder: (String(req.query.sortOrder) as "asc" | "desc") || "desc",
         };
 
+        // ⭐ Handle caseType filter (single or multiple)
+        const caseTypeQuery = req.query.caseType;
+        if (caseTypeQuery) {
+            if (Array.isArray(caseTypeQuery)) {
+                // Keep only string elements
+                options.caseType = caseTypeQuery.filter((v): v is string => typeof v === "string");
+            } else if (typeof caseTypeQuery === "string") {
+                // Allow comma-separated string from frontend
+                options.caseType = caseTypeQuery.split(",").map(v => v.trim());
+            }
+        }
+
+        // ⭐ Call service
         const result = await getAllUploadedReceiptsService(options);
 
         return res.status(200).json({ success: true, data: result });

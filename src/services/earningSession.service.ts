@@ -447,13 +447,14 @@ export const uploadReceiptSessionService = async (
 
 
 
-interface GetReceiptsOptions {
+export interface GetReceiptsOptions {
     page?: number;
     limit?: number;
     sortBy?: string;
     sortOrder?: "asc" | "desc";
-}
+    caseType?: string | string[]; // ⭐ new filter
 
+}
 export const getAllUploadedReceiptsService = async (
     options: GetReceiptsOptions = {}
 ) => {
@@ -463,15 +464,23 @@ export const getAllUploadedReceiptsService = async (
         const sortBy = options.sortBy || "createdAt";
         const sortOrder = options.sortOrder === "asc" ? 1 : -1;
 
-        // Filter only receipt_upload sessions
-        const filter = { type: "receipt_upload" };
+        // ⭐ Base filter: only receipt_upload sessions
+        const filter: any = { type: "receipt_upload" };
+
+        // ⭐ Add caseType filter if provided
+        if (options.caseType) {
+            if (Array.isArray(options.caseType)) {
+                filter["meta.category"] = { $in: options.caseType };
+            } else {
+                filter["meta.category"] = options.caseType;
+            }
+        }
 
         const total = await EarningSession.countDocuments(filter);
         const totalPages = Math.ceil(total / limit);
 
         const receipts = await EarningSession.find(filter)
             .populate("business", "businessInfo.businessName businessInfo.businessType")
-            .populate("meta.extractedData") // optional if you want to populate items
             .sort({ [sortBy]: sortOrder })
             .skip((page - 1) * limit)
             .limit(limit)
