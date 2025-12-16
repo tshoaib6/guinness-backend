@@ -71,6 +71,7 @@ export const getPendingBusinessesController = async (req: Request, res: Response
   }
 };
 
+
 // ---------------- Admin: Approve Business ----------------
 export const approveBusinessController = async (req: Request, res: Response) => {
   try {

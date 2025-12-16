@@ -327,20 +327,39 @@ export const getPendingBusinesses = async (pagination: PaginationOptions = {}) =
 // ---------------- Admin: Approve / Reject Business ----------------
 export const approveBusinessService = async (userId: string) => {
   const user = await User.findById(userId);
-  if (!user || user.role !== "business") return { success: false, message: "Business not found." };
+
+  if (!user || user.role !== "business") {
+    return { success: false, message: "Business not found." };
+  }
 
   user.businessInfo!.approvedByAdmin = true;
-  await user.save();
-  return { success: true, message: "Business approved successfully." };
-};
+  user.status = "active"; // ✅ VERY IMPORTANT
 
+  await user.save();
+
+  return {
+    success: true,
+    message: "Business approved successfully.",
+  };
+};
 export const rejectBusinessService = async (userId: string) => {
   const user = await User.findById(userId);
-  if (!user || user.role !== "business") return { success: false, message: "Business not found." };
 
-  await user.deleteOne();
-  return { success: true, message: "Business registration rejected and removed." };
+  if (!user || user.role !== "business") {
+    return { success: false, message: "Business not found." };
+  }
+
+  user.businessInfo!.approvedByAdmin = false;
+  user.status = "rejected"; // ✅ NOT DELETED
+
+  await user.save();
+
+  return {
+    success: true,
+    message: "Business registration rejected.",
+  };
 };
+
 export const forgotPasswordService = async (email: string) => {
   const user = await User.findOne({ email }).select("+passwordResetOtp +passwordResetOtpExpires");
   if (!user) return { success: false, message: "User not found." };
@@ -522,22 +541,50 @@ export const updateUserStatusService = async (
   };
 };
 
-
 export const getUserDashboardSummaryService = async () => {
-  // ---------- BASIC COUNTS ----------
+  // ---------- TOTAL USERS ----------
   const totalUsers = await User.countDocuments();
-  const totalConsumers = await User.countDocuments({ role: "consumer" });
-  const totalAdmins = await User.countDocuments({ role: "admin" });
-  const totalBusinesses = await User.countDocuments({ role: "business" });
+
+  // ---------- ROLES ----------
+  const consumers = await User.countDocuments({ role: "consumer" });
+  const businesses = await User.countDocuments({ role: "business" });
+  const admins = await User.countDocuments({ role: "admin" });
 
   // ---------- USER STATUS ----------
-  const activeUsers = await User.countDocuments({ status: "active" });
-  const pendingUsers = await User.countDocuments({ status: "pending" });
-  const blockedUsers = await User.countDocuments({ status: "blocked" });
+  const active = await User.countDocuments({ status: "active" });
+  const pending = await User.countDocuments({ status: "pending" });
+  const blocked = await User.countDocuments({ status: "blocked" });
+  const rejected = await User.countDocuments({ status: "rejected" }); // ✅ new
 
-  // ---------- BUSINESS TYPES (DYNAMIC) ----------
-  const businessByType = await User.aggregate([
-    { $match: { role: "business" } },
+  // ---------- BUSINESS COUNTS (FIXED) ----------
+  const approvedBusinesses = await User.countDocuments({
+    role: "business",
+    status: "active", // ✅ only active
+    "businessInfo.approvedByAdmin": true,
+  });
+
+  const rejectedBusinesses = await User.countDocuments({
+    role: "business",
+    status: "rejected", // ✅ now correct
+  });
+
+  const pendingApprovalBusinesses = await User.countDocuments({
+    role: "business",
+    status: "pending",
+    otpVerified: true,
+    "businessInfo.approvedByAdmin": false,
+  });
+
+  // ---------- PENDING BY TYPE ----------
+  const pendingByType = await User.aggregate([
+    {
+      $match: {
+        role: "business",
+        status: "pending",
+        otpVerified: true,
+        "businessInfo.approvedByAdmin": false,
+      },
+    },
     {
       $group: {
         _id: "$businessInfo.businessType",
@@ -553,33 +600,24 @@ export const getUserDashboardSummaryService = async () => {
     },
   ]);
 
-  // ---------- BUSINESS APPROVAL ----------
-  const approvedBusinesses = await User.countDocuments({
-    role: "business",
-    "businessInfo.approvedByAdmin": true,
-  });
-
-  const unapprovedBusinesses = await User.countDocuments({
-    role: "business",
-    "businessInfo.approvedByAdmin": false,
-  });
-
   return {
     totalUsers,
     roles: {
-      consumers: totalConsumers,
-      businesses: totalBusinesses,
-      admins: totalAdmins,
+      consumers,
+      businesses,
+      admins,
     },
     status: {
-      active: activeUsers,
-      pending: pendingUsers,
-      blocked: blockedUsers,
+      active,
+      pending,
+      blocked,
+      rejected, // ✅ new
     },
     businesses: {
       approved: approvedBusinesses,
-      unapproved: unapprovedBusinesses,
-      byType: businessByType,
+      rejected: rejectedBusinesses,
+      pendingApproval: pendingApprovalBusinesses,
+      pendingByType,
     },
   };
 };

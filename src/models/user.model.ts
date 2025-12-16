@@ -44,7 +44,9 @@ export interface IUser extends Document {
   passwordResetOtpExpires?: Date | null;
   passwordResetVerified?: boolean;
 
-  status: "active" | "blocked" | "pending";
+  // ✅ MODIFIED HERE (rejected added)
+  status: "active" | "pending" | "rejected" | "blocked";
+
   createdAt: Date;
   updatedAt: Date;
 }
@@ -59,6 +61,7 @@ const userSchema = new Schema<IUser>(
     dob: { type: Date },
     age: { type: Number },
     location: { type: String },
+
     role: {
       type: String,
       enum: ["consumer", "business", "admin"],
@@ -106,9 +109,10 @@ const userSchema = new Schema<IUser>(
     passwordResetOtpExpires: { type: Date, default: null },
     passwordResetVerified: { type: Boolean, default: false },
 
+    // ✅ MODIFIED ENUM ONLY
     status: {
       type: String,
-      enum: ["active", "blocked", "pending"],
+      enum: ["active", "pending", "rejected", "blocked"],
       default: "active",
       required: true,
     },
@@ -116,6 +120,7 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
+// ---------------- AGE CALCULATION ----------------
 userSchema.pre("save", function (next) {
   if (this.dob) {
     const today = new Date();
@@ -130,6 +135,7 @@ userSchema.pre("save", function (next) {
   next();
 });
 
+// ---------------- SUPERMARKET RULE ----------------
 userSchema.pre("save", function (next) {
   if (this.businessInfo?.businessType === "Supermarket") {
     this.businessInfo.method = "upload_receipt";
@@ -137,6 +143,7 @@ userSchema.pre("save", function (next) {
   next();
 });
 
+// ---------------- INDEXES ----------------
 userSchema.index({ email: 1 }, { unique: true, sparse: true });
 userSchema.index({ phone: 1 }, { unique: true });
 userSchema.index({ role: 1, "businessInfo.approvedByAdmin": 1 });
